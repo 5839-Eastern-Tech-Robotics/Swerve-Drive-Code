@@ -75,26 +75,30 @@ void autonomous() {}
  */
 void opcontrol() {
     while (true) {
+        // get controller input
         float fwd = (float) controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y)  /  127;
         float str = (float) controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X)  / -127;
         float rot = (float) controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X) /  127;
 
+        // convert input from local frame of ref to global frame of ref 
         float theta = imu.get_heading();
-
         float tmp = fwd * std::cos(theta) + str * std::sin(theta);
         str = -fwd * std::sin(theta) + str * std::cos(theta);
         str = tmp; 
 
+        // save repeated calculations
         float A = str - rot * driveLength / driveRadius;
         float B = str + rot * driveLength / driveRadius;
         float C = fwd + rot * driveWidth  / driveRadius;
         float D = fwd - rot * driveWidth  / driveRadius;
 
+        // calculate magnitude of drive vector
         float FRSpeed = std::sqrt(B*B + C*C);
         float FLSpeed = std::sqrt(B*B + D*D);
         float BLSpeed = std::sqrt(A*A + D*D);
         float BRSpeed = std::sqrt(A*A + C*C);
 
+        // scale drive vectors to 0-1 range
         float maxSpeed = std::max({FRSpeed, FLSpeed, BLSpeed, BRSpeed});
         if (maxSpeed > 1) {
             FRSpeed /= maxSpeed;
@@ -103,16 +107,19 @@ void opcontrol() {
             BRSpeed /= maxSpeed;
         }
 
+        // calculate heading for drive vector
         float FRAngle = std::atan2(B, C) * 180 / M_PI / rotateRatio;
         float FLAngle = std::atan2(B, D) * 180 / M_PI / rotateRatio;
         float BLAngle = std::atan2(A, D) * 180 / M_PI / rotateRatio;
         float BRAngle = std::atan2(A, C) * 180 / M_PI / rotateRatio;
 
+        // calculate error to calculate minimum rotation later
         float FRError = FRAngle - rotateFR.get_position();
         float FLError = FLAngle - rotateFL.get_position();
         float BLError = BLAngle - rotateBL.get_position();
         float BRError = BRAngle - rotateBR.get_position();
 
+        // simple get smallest rotation algo, TODO: improve this
         if (FRError > 90 / rotateRatio)  { FRError -= 180 / rotateRatio; FRSpeed *= -1; }
         if (FRError < -90 / rotateRatio) { FRError += 180 / rotateRatio; FRSpeed *= -1; }
 
@@ -125,11 +132,13 @@ void opcontrol() {
         if (BRError > 90 / rotateRatio)  { BRError -= 180 / rotateRatio; BRSpeed *= -1; }
         if (BRError < -90 / rotateRatio) { BRError += 180 / rotateRatio; BRSpeed *= -1; }
 
+        // actually move to the angle using PID, TODO: retune PID
         rotateFR.move(FRPID.update(FRError));
         rotateFL.move(FLPID.update(FLError));
         rotateBL.move(BLPID.update(BLError));
         rotateBR.move(BRPID.update(BRError));
 
+        // drive the wheels at the right velocity
         driveFR.move(FRSpeed * 127);
         driveFL.move(FLSpeed * 127);
         driveBL.move(BLSpeed * 127);
