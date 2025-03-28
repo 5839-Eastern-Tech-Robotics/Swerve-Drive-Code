@@ -1,12 +1,15 @@
 #include "main.h"
 
 #include "globals.hpp"
+#include "pros/abstract_motor.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
 #include "pros/motors.h"
+#include "pros/rtos.hpp"
 #include "units/units.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
 /**
@@ -74,74 +77,126 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-    while (true) {
-        // get controller input
-        float fwd = (float) controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y)  /  127;
-        float str = (float) controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X)  / -127;
-        float rot = (float) controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X) /  127;
+  // get max theoretical rotation speed
+  float driveRPM =
+      driveCartridge == pros::MotorGears::rpm_100 ? 100
+          : (driveCartridge == pros::MotorGears::rpm_200 ? 200
+                 : (driveCartridge == pros::MotorGears::rpm_600 ? 600 : 0));
+  float theoreticalMaxRotVel = 3 * driveRPM * driveRatio * driveWheelDiameter / driveRadius;
 
-        // convert input from local frame of ref to global frame of ref 
-        float theta = imu.get_heading();
-        float tmp = fwd * std::cos(theta) + str * std::sin(theta);
-        str = -fwd * std::sin(theta) + str * std::cos(theta);
-        str = tmp; 
+  int prevtime = pros::millis() - 50;
+  float prevRotation = imu.get_heading();
+  while (true) {
+    // get deltatime and log current rotation speed
+    float deltaTime = (pros::millis() - prevtime) / 1000.0;
+    float curRotVel = (imu.get_heading() - prevRotation) / deltaTime;
+    printf("Max = %f deg/sec, current = %f deg/sec, dt = %f, heading = %f deg\n", theoreticalMaxRotVel, curRotVel, deltaTime, imu.get_heading());
+    prevtime = pros::millis();
+    prevRotation = imu.get_heading();
 
-        // save repeated calculations
-        float A = str - rot * driveLength / driveRadius;
-        float B = str + rot * driveLength / driveRadius;
-        float C = fwd + rot * driveWidth  / driveRadius;
-        float D = fwd - rot * driveWidth  / driveRadius;
+    // get controller input
+    float fwd = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y)  /  127.0;
+    float str = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X)  / -127.0;
+    float rot = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X) / -127.0;
 
-        // calculate magnitude of drive vector
-        float FRSpeed = std::sqrt(B*B + C*C);
-        float FLSpeed = std::sqrt(B*B + D*D);
-        float BLSpeed = std::sqrt(A*A + D*D);
-        float BRSpeed = std::sqrt(A*A + C*C);
+    // reset heading
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
+      imu.set_heading(0);
 
-        // scale drive vectors to 0-1 range
-        float maxSpeed = std::max({FRSpeed, FLSpeed, BLSpeed, BRSpeed});
-        if (maxSpeed > 1) {
-            FRSpeed /= maxSpeed;
-            FLSpeed /= maxSpeed;
-            BLSpeed /= maxSpeed;
-            BRSpeed /= maxSpeed;
-        }
+    // convert input from local frame of ref to global frame of ref
+    float theta = imu.get_heading() * M_PI / 180;
+    float tmp = fwd * std::cos(theta) - str * std::sin(theta);
+    str = fwd * std::sin(theta) + str * std::cos(theta);
+    fwd = tmp;
 
-        // calculate heading for drive vector
-        float FRAngle = std::atan2(B, C) * 180 / M_PI / rotateRatio;
-        float FLAngle = std::atan2(B, D) * 180 / M_PI / rotateRatio;
-        float BLAngle = std::atan2(A, D) * 180 / M_PI / rotateRatio;
-        float BRAngle = std::atan2(A, C) * 180 / M_PI / rotateRatio;
+    // save repeated calculations
+    float A = str - rot * driveLength / driveRadius;
+    float B = str + rot * driveLength / driveRadius;
+    float C = fwd + rot * driveWidth / driveRadius;
+    float D = fwd - rot * driveWidth / driveRadius;
 
-        // calculate error to calculate minimum rotation later
-        float FRError = FRAngle - rotateFR.get_position();
-        float FLError = FLAngle - rotateFL.get_position();
-        float BLError = BLAngle - rotateBL.get_position();
-        float BRError = BRAngle - rotateBR.get_position();
+    // calculate magnitude of drive vector
+    float FRSpeed = std::sqrt(B * B + C * C);
+    float FLSpeed = std::sqrt(B * B + D * D);
+    float BLSpeed = std::sqrt(A * A + D * D);
+    float BRSpeed = std::sqrt(A * A + C * C);
 
-        // simple get smallest rotation algo, TODO: improve this
-        if (FRError > 90 / rotateRatio)  { FRError -= 180 / rotateRatio; FRSpeed *= -1; }
-        if (FRError < -90 / rotateRatio) { FRError += 180 / rotateRatio; FRSpeed *= -1; }
-
-        if (FLError > 90 / rotateRatio)  { FLError -= 180 / rotateRatio; FLSpeed *= -1; }
-        if (FLError < -90 / rotateRatio) { FLError += 180 / rotateRatio; FLSpeed *= -1; }
-
-        if (BLError > 90 / rotateRatio)  { BLError -= 180 / rotateRatio; BLSpeed *= -1; }
-        if (BLError < -90 / rotateRatio) { BLError += 180 / rotateRatio; BLSpeed *= -1; }
-
-        if (BRError > 90 / rotateRatio)  { BRError -= 180 / rotateRatio; BRSpeed *= -1; }
-        if (BRError < -90 / rotateRatio) { BRError += 180 / rotateRatio; BRSpeed *= -1; }
-
-        // actually move to the angle using PID, TODO: retune PID
-        rotateFR.move(FRPID.update(FRError));
-        rotateFL.move(FLPID.update(FLError));
-        rotateBL.move(BLPID.update(BLError));
-        rotateBR.move(BRPID.update(BRError));
-
-        // drive the wheels at the right velocity
-        driveFR.move(FRSpeed * 127);
-        driveFL.move(FLSpeed * 127);
-        driveBL.move(BLSpeed * 127);
-        driveBR.move(BRSpeed * 127);
+    // scale drive vectors to 0-1 range
+    float maxSpeed = std::max({FRSpeed, FLSpeed, BLSpeed, BRSpeed});
+    if (maxSpeed > 1) {
+      FRSpeed /= maxSpeed;
+      FLSpeed /= maxSpeed;
+      BLSpeed /= maxSpeed;
+      BRSpeed /= maxSpeed;
     }
+
+    // calculate heading for drive vector
+    float FRAngle = std::atan2(B, C) * 180 / M_PI / rotateRatio;
+    float FLAngle = std::atan2(B, D) * 180 / M_PI / rotateRatio;
+    float BLAngle = std::atan2(A, D) * 180 / M_PI / rotateRatio;
+    float BRAngle = std::atan2(A, C) * 180 / M_PI / rotateRatio;
+
+    // calculate error to calculate minimum rotation later
+    float FRError = FRAngle - std::remainder(rotateFR.get_position(), (360 / rotateRatio));
+    float FLError = FLAngle - std::remainder(rotateFL.get_position(), (360 / rotateRatio));
+    float BLError = BLAngle - std::remainder(rotateBL.get_position(), (360 / rotateRatio));
+    float BRError = BRAngle - std::remainder(rotateBR.get_position(), (360 / rotateRatio));
+
+    // Get smallest rotation algo (kinda skuffed lol)
+    FRError = std::remainder(FRError, (360 / rotateRatio));
+    FLError = std::remainder(FLError, (360 / rotateRatio));
+    BLError = std::remainder(BLError, (360 / rotateRatio));
+    BRError = std::remainder(BRError, (360 / rotateRatio));
+
+    // Flip rotation and velocity direction
+    if (FRError > 90 / rotateRatio) {
+      FRError -= 180 / rotateRatio;
+      FRSpeed *= -1;
+    }
+    if (FRError < -90 / rotateRatio) {
+      FRError += 180 / rotateRatio;
+      FRSpeed *= -1;
+    }
+
+    if (FLError > 90 / rotateRatio) {
+      FLError -= 180 / rotateRatio;
+      FLSpeed *= -1;
+    }
+    if (FLError < -90 / rotateRatio) {
+      FLError += 180 / rotateRatio;
+      FLSpeed *= -1;
+    }
+
+    if (BLError > 90 / rotateRatio) {
+      BLError -= 180 / rotateRatio;
+      BLSpeed *= -1;
+    }
+    if (BLError < -90 / rotateRatio) {
+      BLError += 180 / rotateRatio;
+      BLSpeed *= -1;
+    }
+
+    if (BRError > 90 / rotateRatio) {
+      BRError -= 180 / rotateRatio;
+      BRSpeed *= -1;
+    }
+    if (BRError < -90 / rotateRatio) {
+      BRError += 180 / rotateRatio;
+      BRSpeed *= -1;
+    }
+
+    // actually move to the angle using PID, TODO: retune PID
+    rotateFR.move(FRPID.update(FRError));
+    rotateFL.move(FLPID.update(FLError));
+    rotateBL.move(BLPID.update(BLError));
+    rotateBR.move(BRPID.update(BRError));
+
+    // drive the wheels at the right velocity
+    driveFR.move(FRSpeed * 127);
+    driveFL.move(FLSpeed * 127);
+    driveBL.move(BLSpeed * 127);
+    driveBR.move(BRSpeed * 127);
+
+    pros::delay(50);
+  }
 }
