@@ -1,5 +1,4 @@
 #include "robot/drive/swerveDrive.hpp"
-#include "globals.hpp"
 #include "units/Angle.hpp"
 #include "units/Vector2D.hpp"
 #include "units/units.hpp"
@@ -8,104 +7,78 @@
 namespace libmavnetics {
 
 Angle SwerveModule::getModuleAngle() {
-	return 0_stDeg;
+  return units::constrainAngle360(rotateMotor.get_position() * 1_stDeg / rotateRatio);
 }
 
 int SwerveModule::rotateTo(Angle angle) {
-	int out = 1;
-	Angle error = angle - getModuleAngle();
-	error = units::constrainAngle180(error);
+  int out = 1;
+  Angle error = angle - getModuleAngle();
+  error = units::constrainAngle180(error);
 
-	if (error > 90_stDeg) {
-		error -= 180_stDeg;
-		out *= -1;
-	}
+  if (error > 90_stDeg) {
+    error -= 180_stDeg;
+    out *= -1;
+  }
 
-	if (error < -90_stDeg) {
-		error += 180_stDeg;
-		out *= -1;
-	}
+  if (error < -90_stDeg) {
+    error += 180_stDeg;
+    out *= -1;
+  }
 
-	rotateMotor.move(rotatePID.update(error.convert(1_stDeg)));
-	return out;
+  rotateMotor.move(rotatePID.update(error.convert(1_stDeg)));
+  return out;
 }
 
-void SwerveModule::move(int8_t vel) { driveMotor.move(vel); }
-
-void SwerveModule::move(LinearVelocity vel) {
-
+void SwerveModule::move(int8_t vel) {
+  driveMotor.move(vel);
 }
 
-void SwerveModule::moveVector(units::Vector2D<Number> vec) {
-	int swap = rotateTo(vec.angleTo({0, 0}));
-	move(vec.magnitude() * swap * 127);
-}
-
-SwerveDrive::SwerveDrive(std::vector<SwerveModule> modules) : modules(modules) {}
+SwerveDrive::SwerveDrive(std::vector<SwerveModule> modules)
+    : modules(modules) {}
 
 void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
-				// save repeated calculations
-				Number A = strVel - trnVel * driveLength / driveRadius;
-				Number B = strVel + trnVel * driveLength / driveRadius;
-				Number C = fwdVel + trnVel * driveWidth  / driveRadius;
-				Number D = fwdVel - trnVel * driveWidth  / driveRadius;
+    // Compute the maximum wheel speed to scale output if needed
+    Number maxSpeed = 0;
 
-				// calculate magnitude of drive vector
-				Number FRSpeed = units::sqrt(B*B + C*C);
-				Number FLSpeed = units::sqrt(B*B + D*D);
-				Number BLSpeed = units::sqrt(A*A + D*D);
-				Number BRSpeed = units::sqrt(A*A + C*C);
+    // Vector of wheel velocities
+    std::vector<units::Vector2D<Number>> wheelVectors;
 
-				// scale drive vectors to 0-1 range
-				Number maxSpeed = std::max({FRSpeed, FLSpeed, BLSpeed, BRSpeed});
-				if (maxSpeed > 1) {
-						FRSpeed /= maxSpeed;
-						FLSpeed /= maxSpeed;
-						BLSpeed /= maxSpeed;
-						BRSpeed /= maxSpeed;
-				}
+    for (const libmavnetics::SwerveModule& module : modules) {
+        // Step 1: Calculate the rotational component (perpendicular to the locator vector)
+        // Use z-rotation (cross product in 2D) for turn velocity
+        units::Vector2D<Number> rotationVec = {
+            -module.locator.y.convert(1_in) * trnVel,
+             module.locator.x.convert(1_in) * trnVel
+        };
 
-				// calculate heading for drive vector
-				Angle FRAngle = units::atan2(B, C) / rotateRatio;
-				Angle FLAngle = units::atan2(B, D) / rotateRatio;
-				Angle BLAngle = units::atan2(A, D) / rotateRatio;
-				Angle BRAngle = units::atan2(A, C) / rotateRatio;
+        // Step 2: Combine translational and rotational vectors
+        units::Vector2D<Number> wheelVec = {
+            strVel + rotationVec.x,
+            fwdVel + rotationVec.y
+        };
 
-				// calculate error to calculate minimum rotation later
-				Angle FRError = FRAngle - units::remainder(from_cDeg(rotateFR.get_position()), (360 / rotateRatio));
-				Angle FLError = FLAngle - units::remainder(from_cDeg(rotateFL.get_position()), (360 / rotateRatio));
-				Angle BLError = BLAngle - units::remainder(from_cDeg(rotateBL.get_position()), (360 / rotateRatio));
-				Angle BRError = BRAngle - units::remainder(from_cDeg(rotateBR.get_position()), (360 / rotateRatio));
-				
-				// Get smallest rotation algo (kinda skuffed lol)
-				FRError = units::remainder(FRError, (360 / rotateRatio));
-				FLError = units::remainder(FLError, (360 / rotateRatio));
-				BLError = units::remainder(BLError, (360 / rotateRatio));
-				BRError = units::remainder(BRError, (360 / rotateRatio));
+        wheelVectors.push_back(wheelVec);
 
-				// Flip rotation and velocity direction
-				if (FRError > from_stDeg(90) / rotateRatio)  { FRError -= from_stDeg(180) / rotateRatio; FRSpeed *= -1; }
-				if (FRError < -from_stDeg(90) / rotateRatio) { FRError += from_stDeg(180) / rotateRatio; FRSpeed *= -1; }
+        // Track the max speed for normalization
+        maxSpeed = std::max(maxSpeed, wheelVec.magnitude());
+    }
 
-				if (FLError > from_stDeg(90) / rotateRatio)  { FLError -= from_stDeg(180) / rotateRatio; FLSpeed *= -1; }
-				if (FLError < -from_stDeg(90) / rotateRatio) { FLError += from_stDeg(180) / rotateRatio; FLSpeed *= -1; }
+    // Optional: normalize speeds if any exceed max motor power (127)
+    constexpr Number maxMotorOutput = 127;
+    Number scale = maxSpeed > maxMotorOutput ? (maxMotorOutput / maxSpeed) : 1;
 
-				if (BLError > from_stDeg(90) / rotateRatio)  { BLError -= from_stDeg(180) / rotateRatio; BLSpeed *= -1; }
-				if (BLError < -from_stDeg(90) / rotateRatio) { BLError += from_stDeg(180) / rotateRatio; BLSpeed *= -1; }
+    for (size_t i = 0; i < modules.size(); ++i) {
+        libmavnetics::SwerveModule& module = modules[i];
+        units::Vector2D<Number> wheelVec = wheelVectors[i];
 
-				if (BRError > from_stDeg(90) / rotateRatio)  { BRError -= from_stDeg(180) / rotateRatio; BRSpeed *= -1; }
-				if (BRError < -from_stDeg(90) / rotateRatio) { BRError += from_stDeg(180) / rotateRatio; BRSpeed *= -1; }
+        // Step 3: Get desired wheel angle
+        Angle angle = units::atan2(wheelVec.y, wheelVec.x);
 
-				// actually move to the angle using PID, TODO: retune PID
-				rotateFR.move(FRPID.update(FRError.convert(1_stDeg)));
-				rotateFL.move(FLPID.update(FLError.convert(1_stDeg)));
-				rotateBL.move(BLPID.update(BLError.convert(1_stDeg)));
-				rotateBR.move(BRPID.update(BRError.convert(1_stDeg)));
+        // Step 4: Rotate to desired angle
+        int dir = module.rotateTo(angle);
 
-				// drive the wheels at the right velocity
-				driveFR.move(FRSpeed * 127);
-				driveFL.move(FLSpeed * 127);
-				driveBL.move(BLSpeed * 127);
-				driveBR.move(BRSpeed * 127);
+        // Step 5: Apply velocity with possible inversion
+        module.move(wheelVec.magnitude() * scale * dir);
+    }
 }
 } // namespace libmavnetics

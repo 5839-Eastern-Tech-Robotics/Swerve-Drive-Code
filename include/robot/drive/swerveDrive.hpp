@@ -27,13 +27,6 @@ struct SwerveModule {
     Angle getModuleAngle();
 
     /**
-     * @brief Get the maximum linear velocity of the module
-     * 
-     * @return LinearVelocity 
-     */
-    LinearVelocity getMaxLinVel();
-
-    /**
      * @brief rotates the pod to the specified angle constrained to 360
      * takes the shortest path possible
      * 
@@ -48,19 +41,6 @@ struct SwerveModule {
      * @param vel 0-127
      */
     void move(int8_t vel);
-    /**
-     * @brief spin the motors so the robot moves at the desired linear velocity
-     * 
-     * @param vel the linear velocity capped to the max linear velocity calculated
-     */
-    void move(LinearVelocity vel);
-
-    /**
-     * @brief turns and spins the module at a certain vector
-     * 
-     * @param vec normalized 0-1 length
-     */
-    void moveVector(units::Vector2D<Number> vec);
 };
 
 class SwerveDrive {

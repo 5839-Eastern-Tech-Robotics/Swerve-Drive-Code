@@ -109,6 +109,22 @@ void opcontrol() {
     str = fwd * std::sin(theta) + str * std::cos(theta);
     fwd = tmp;
 
+    // drive.holonomic(fwd, str, rot);
+
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+      intake.move(127);
+      liftBelt.move(127);
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+      intake.move(-127);
+      liftBelt.move(-127);
+    } else {
+      intake.move(0);
+      liftBelt.move(0);
+    }
+
+    // pros::delay(50);
+    // continue;
+
     // save repeated calculations
     float A = str - rot * driveLength / driveRadius;
     float B = str + rot * driveLength / driveRadius;
@@ -196,7 +212,7 @@ void opcontrol() {
     driveFL.move(FLSpeed * 127);
     driveBL.move(BLSpeed * 127);
     driveBR.move(BRSpeed * 127);
-
+    
     pros::delay(50);
   }
 }
