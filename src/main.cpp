@@ -6,6 +6,7 @@
 #include "pros/misc.h"
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
+#include "units/Angle.hpp"
 #include "units/units.hpp"
 #include <algorithm>
 #include <cmath>
@@ -77,6 +78,34 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+
+  while (true) {
+    Number ly = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+    Number lx = -controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
+    Number rx = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+
+    drive.holonomic(ly, lx, rx);
+
+    /*
+    Angle angle = units::atan2(lx, ly);
+    BLModule.rotateTo(angle);
+    BRModule.rotateTo(angle);
+    FLModule.rotateTo(angle);
+    FRModule.rotateTo(angle);
+
+    BLModule.move(rx * 127.0);
+    BRModule.move(rx * 127.0);
+    FLModule.move(rx * 127.0);
+    FRModule.move(rx * 127.0);
+    */
+
+    pros::delay(50);
+  }
+
+  return;
+
+
+
   // get max theoretical rotation speed
   float driveRPM =
       driveCartridge == pros::MotorGears::rpm_100 ? 100

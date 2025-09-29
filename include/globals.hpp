@@ -48,4 +48,4 @@ extern Length driveRadius;
 
 extern pros::Controller controller;
 
-// extern libmavnetics::SwerveDrive drive;
+extern libmavnetics::SwerveDrive drive;

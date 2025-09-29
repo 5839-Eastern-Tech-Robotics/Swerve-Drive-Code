@@ -7,7 +7,7 @@
 namespace libmavnetics {
 
 Angle SwerveModule::getModuleAngle() {
-  return units::constrainAngle360(rotateMotor.get_position() * 1_stDeg / rotateRatio);
+  return units::constrainAngle360(rotateMotor.get_position() * 1_stDeg * rotateRatio);
 }
 
 int SwerveModule::rotateTo(Angle angle) {
@@ -37,21 +37,16 @@ SwerveDrive::SwerveDrive(std::vector<SwerveModule> modules)
     : modules(modules) {}
 
 void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
-    // Compute the maximum wheel speed to scale output if needed
-    Number maxSpeed = 0;
 
-    // Vector of wheel velocities
+    Number maxSpeed = 0;
     std::vector<units::Vector2D<Number>> wheelVectors;
 
     for (const libmavnetics::SwerveModule& module : modules) {
-        // Step 1: Calculate the rotational component (perpendicular to the locator vector)
-        // Use z-rotation (cross product in 2D) for turn velocity
         units::Vector2D<Number> rotationVec = {
-            -module.locator.y.convert(1_in) * trnVel,
+             module.locator.y.convert(1_in) * trnVel,
              module.locator.x.convert(1_in) * trnVel
         };
 
-        // Step 2: Combine translational and rotational vectors
         units::Vector2D<Number> wheelVec = {
             strVel + rotationVec.x,
             fwdVel + rotationVec.y
@@ -59,26 +54,26 @@ void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
 
         wheelVectors.push_back(wheelVec);
 
-        // Track the max speed for normalization
         maxSpeed = std::max(maxSpeed, wheelVec.magnitude());
     }
 
-    // Optional: normalize speeds if any exceed max motor power (127)
-    constexpr Number maxMotorOutput = 127;
-    Number scale = maxSpeed > maxMotorOutput ? (maxMotorOutput / maxSpeed) : 1;
-
+    Number scale = maxSpeed > 127 ? (127 / maxSpeed) : 1;
+    
     for (size_t i = 0; i < modules.size(); ++i) {
         libmavnetics::SwerveModule& module = modules[i];
         units::Vector2D<Number> wheelVec = wheelVectors[i];
 
-        // Step 3: Get desired wheel angle
+        std::cout << "(" << module.locator.x << ", " << module.locator.y << "): ";
+        std::cout << "(" << wheelVec.x << ",  " << wheelVec.y << ") -> ";
+
         Angle angle = units::atan2(wheelVec.y, wheelVec.x);
-
-        // Step 4: Rotate to desired angle
+        
         int dir = module.rotateTo(angle);
-
-        // Step 5: Apply velocity with possible inversion
+        
+        std::cout << "(" << wheelVec.magnitude() * scale << ", " << angle << ") | ";
         module.move(wheelVec.magnitude() * scale * dir);
     }
+
+    std::cout << "\n";
 }
 } // namespace libmavnetics
