@@ -8,11 +8,8 @@
 #include "units/Angle.hpp"
 #include "units/units.hpp"
 #include <cmath>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <iostream>
-#include <vector>
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -79,10 +76,6 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-
-  std::vector<Number> xVals{};
-  std::vector<Angle> yVals{};
-
   while (true) {
     Angle heading{-imu.get_heading() + 90};
 
@@ -90,27 +83,19 @@ void opcontrol() {
     Number ly = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
     Number rx = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-    xVals.push_back(rx);
-    yVals.push_back(heading);
+    drive.driverControl(heading, lx, ly, rx, true);
 
-    drive.driverControl(heading, lx, ly, rx, false);
-
-    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
-      break;
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+      intake.move(127);
+      liftBelt.move(127);
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+      intake.move(-127);
+      liftBelt.move(-127);
+    } else {
+      intake.move(0);
+      liftBelt.move(0);
     }
 
     pros::delay(50);
   }
-
-  std::cout << "xVals = [";
-  for (Number x : xVals) {
-    std::cout << x.convert(1) << ", "; 
-  }
-  std::cout << "]\n";
-
-  std::cout << "yVals = [";
-  for (Angle y : yVals) {
-    std::cout << y.convert(1_stRad) << ", "; 
-  }
-  std::cout << "]\n";
 }
