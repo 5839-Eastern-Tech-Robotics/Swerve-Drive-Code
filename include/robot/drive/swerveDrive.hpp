@@ -48,9 +48,10 @@ public:
     SwerveDrive(std::vector<SwerveModule> modules);
 
     void holonomic(Number fwdVel, Number strVel, Number trnVel);
-    void globalHolonomic(Angle heading, Number fwdVel, Number strVel, Number driveLength);
+    void driverControl(Angle heading, Number fwdVel, Number strVel, Number driveLength);
 
 private:
     std::vector<SwerveModule> modules;
+    Angle prevHeading = 0_stDeg;
 };
 } // namespace libmavnetics

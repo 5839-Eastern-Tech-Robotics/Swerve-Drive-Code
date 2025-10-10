@@ -7,73 +7,76 @@
 namespace libmavnetics {
 
 Angle SwerveModule::getModuleAngle() {
-  return units::constrainAngle360(rotateMotor.get_position() * 1_stDeg * rotateRatio);
+	return units::constrainAngle360(rotateMotor.get_position() * 1_stDeg * rotateRatio);
 }
 
 int SwerveModule::rotateTo(Angle angle) {
-  int out = 1;
-  Angle error = angle - getModuleAngle();
-  error = units::constrainAngle180(error);
+	int out = 1;
+	Angle error = angle - getModuleAngle();
+	error = units::constrainAngle180(error);
 
-  if (error > 90_stDeg) {
-    error -= 180_stDeg;
-    out *= -1;
-  }
+	if (error > 90_stDeg) {
+		error -= 180_stDeg;
+		out *= -1;
+	}
 
-  if (error < -90_stDeg) {
-    error += 180_stDeg;
-    out *= -1;
-  }
+	if (error < -90_stDeg) {
+		error += 180_stDeg;
+		out *= -1;
+	}
 
-  rotateMotor.move(rotatePID.update(error.convert(1_stDeg)));
-  return out;
+	rotateMotor.move(rotatePID.update(error.convert(1_stDeg)));
+	return out;
 }
 
 void SwerveModule::move(int8_t vel) {
-  driveMotor.move(vel);
+	driveMotor.move(vel);
 }
 
 SwerveDrive::SwerveDrive(std::vector<SwerveModule> modules)
-    : modules(modules) {}
+		: modules(modules) {}
 
 void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
 
-    Number maxSpeed = 0;
-    std::vector<units::Vector2D<Number>> wheelVectors;
+		Number maxSpeed = 0;
+		std::vector<units::Vector2D<Number>> wheelVectors;
 
-    for (const libmavnetics::SwerveModule& module : modules) {
-        units::Vector2D<Number> rotationVec = {
-             module.locator.y.convert(1_in) * trnVel,
-             module.locator.x.convert(1_in) * trnVel
-        };
+		for (const libmavnetics::SwerveModule& module : modules) {
+				units::Vector2D<Number> rotationVec = {
+						 -module.locator.y.convert(1_in) * trnVel,
+						 -module.locator.x.convert(1_in) * trnVel
+				};
 
-        units::Vector2D<Number> wheelVec = {
-            strVel + rotationVec.x,
-            fwdVel + rotationVec.y
-        };
+				units::Vector2D<Number> wheelVec = {
+						strVel + rotationVec.y,
+						fwdVel + rotationVec.x
+				};
 
-        wheelVectors.push_back(wheelVec);
+				std::cout << "(" << module.locator.x << ", " << module.locator.y << "): ";
+				std::cout << trnVel << " -> (" << rotationVec.x << ",  " << rotationVec.y << ")";
 
-        maxSpeed = std::max(maxSpeed, wheelVec.magnitude());
-    }
+				wheelVectors.push_back(wheelVec);
 
-    Number scale = maxSpeed > 127 ? (127 / maxSpeed) : 1;
-    
-    for (size_t i = 0; i < modules.size(); ++i) {
-        libmavnetics::SwerveModule& module = modules[i];
-        units::Vector2D<Number> wheelVec = wheelVectors[i];
+				maxSpeed = std::max(maxSpeed, wheelVec.magnitude());
+		}
 
-        std::cout << "(" << module.locator.x << ", " << module.locator.y << "): ";
-        std::cout << "(" << wheelVec.x << ",  " << wheelVec.y << ") -> ";
+		Number scale = maxSpeed > 127 ? (127 / maxSpeed) : 1;
+		
+		for (size_t i = 0; i < modules.size(); ++i) {
+				libmavnetics::SwerveModule& module = modules[i];
+				units::Vector2D<Number> wheelVec = wheelVectors[i];
 
-        Angle angle = units::atan2(wheelVec.y, wheelVec.x);
-        
-        int dir = module.rotateTo(angle);
-        
-        std::cout << "(" << wheelVec.magnitude() * scale << ", " << angle << ") | ";
-        module.move(wheelVec.magnitude() * scale * dir);
-    }
+				Angle angle = units::atan2(wheelVec.y, wheelVec.x);
+				
+				int dir = module.rotateTo(angle);
+				
+				module.move(wheelVec.magnitude() * scale * dir);
+		}
 
-    std::cout << "\n";
+		std::cout << "\n";
+}
+
+void driverControl(Angle heading, Number fwdVel, Number strVel, Number driveLength) {
+	
 }
 } // namespace libmavnetics
