@@ -45,13 +45,14 @@ struct SwerveModule {
 
 class SwerveDrive {
 public:
-    SwerveDrive(std::vector<SwerveModule> modules);
+    SwerveDrive(std::vector<SwerveModule> modules, PID stabilityPID);
 
     void holonomic(Number fwdVel, Number strVel, Number trnVel);
-    void driverControl(Angle heading, Number fwdVel, Number strVel, Number driveLength);
+    void driverControl(Angle heading, Number fwdVel, Number strVel, Number trnVel, bool absoluteControl);
 
 private:
     std::vector<SwerveModule> modules;
+    PID stabilityPID;
     Angle prevHeading = 0_stDeg;
 };
 } // namespace libmavnetics

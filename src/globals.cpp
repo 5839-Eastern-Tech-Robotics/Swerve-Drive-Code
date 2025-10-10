@@ -52,6 +52,6 @@ Length driveWidth = 10.5_in;
 Length driveLength = 13.5_in;
 Length driveRadius = units::sqrt(driveLength * driveLength / 4.0 + driveWidth * driveWidth / 4.0);
 
-libmavnetics::SwerveDrive drive{{BLModule, BRModule, FLModule, FRModule}};
+libmavnetics::SwerveDrive drive{{BLModule, BRModule, FLModule, FRModule}, {0, 0, 0}};
 
 pros::Controller controller{pros::E_CONTROLLER_MASTER};

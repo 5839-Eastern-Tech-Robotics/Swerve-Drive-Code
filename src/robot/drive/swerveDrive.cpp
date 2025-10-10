@@ -2,6 +2,7 @@
 #include "units/Angle.hpp"
 #include "units/Vector2D.hpp"
 #include "units/units.hpp"
+#include <algorithm>
 #include <cstdint>
 
 namespace libmavnetics {
@@ -33,8 +34,13 @@ void SwerveModule::move(int8_t vel) {
 	driveMotor.move(vel);
 }
 
-SwerveDrive::SwerveDrive(std::vector<SwerveModule> modules)
-		: modules(modules) {}
+// unused for now, just only correcting drift when the desired movement is low enough works well enough
+AngularVelocity fromController(Number value) {
+	return AngularVelocity(std::clamp(0.02852292 * value + 0.03589372, -0.646064256, 0.560643706));
+}
+
+SwerveDrive::SwerveDrive(std::vector<SwerveModule> modules, PID stabilityPID)
+		: modules(modules), stabilityPID(stabilityPID) {}
 
 void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
 
@@ -51,9 +57,6 @@ void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
 						strVel + rotationVec.y,
 						fwdVel + rotationVec.x
 				};
-
-				std::cout << "(" << module.locator.x << ", " << module.locator.y << "): ";
-				std::cout << trnVel << " -> (" << rotationVec.x << ",  " << rotationVec.y << ")";
 
 				wheelVectors.push_back(wheelVec);
 
@@ -73,10 +76,19 @@ void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
 				module.move(wheelVec.magnitude() * scale * dir);
 		}
 
-		std::cout << "\n";
 }
 
-void driverControl(Angle heading, Number fwdVel, Number strVel, Number driveLength) {
-	
+void SwerveDrive::driverControl(Angle heading, Number fwdVel, Number strVel, Number trnVel, bool absoluteControl) {
+	if (trnVel > -30 && trnVel < 30) {
+		trnVel += stabilityPID.update((prevHeading - heading).convert(1_stDeg));
+	}
+
+	if (absoluteControl) {
+		float tmp = fwdVel * units::cos(heading) - strVel * units::sin(heading);
+		strVel = fwdVel * units::sin(heading) + strVel * units::cos(heading);
+		fwdVel = tmp;
+	}
+
+	holonomic(fwdVel, strVel, std::clamp(trnVel.convert(1), -128.0, 127.0));
 }
 } // namespace libmavnetics
