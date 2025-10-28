@@ -80,7 +80,7 @@ void SwerveDrive::holonomic(Number fwdVel, Number strVel, Number trnVel) {
 
 void SwerveDrive::driverControl(Angle heading, Number fwdVel, Number strVel, Number trnVel, bool absoluteControl) {
 	if (trnVel > -30 && trnVel < 30) {
-		trnVel += stabilityPID.update((prevHeading - heading).convert(1_stDeg));
+		trnVel = stabilityPID.update((prevHeading - heading).convert(1_stDeg));
 	}
 
 	if (absoluteControl) {
