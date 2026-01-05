@@ -10,10 +10,17 @@
 #include "units/units.hpp"
 
 extern pros::IMU imu;
-extern libmavnetics::PID rotateMotorPID;
 
 extern pros::MotorGroup intake;
 extern pros::Motor liftBelt;
+
+extern pros::MotorCartridge driveCartridge;
+extern Number driveRatio;
+extern Length driveWheelDiameter;
+
+extern pros::MotorCartridge rotateCartridge;
+extern Number rotateRatio;
+extern libmavnetics::PID rotateMotorPID;
 
 extern pros::Motor driveBL;
 extern pros::Motor rotateBL;
@@ -35,16 +42,10 @@ extern pros::Motor rotateFR;
 extern libmavnetics::PID FRPID;
 extern libmavnetics::SwerveModule FRModule;
 
-extern pros::MotorCartridge driveCartridge;
-extern Number driveRatio;
-extern Length driveWheelDiameter;
-
-extern pros::MotorCartridge rotateCartridge;
-extern Number rotateRatio;
-
-extern Length driveLength;
-extern Length driveWidth;
-extern Length driveRadius;
+extern libmavnetics::PID stabilityPID;
+extern libmavnetics::PID drivePID;
+extern libmavnetics::PID strafePID;
+extern libmavnetics::PID rotatePID;
 
 extern pros::Controller controller;
 

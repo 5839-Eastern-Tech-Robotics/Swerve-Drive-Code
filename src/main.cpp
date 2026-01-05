@@ -83,7 +83,7 @@ void opcontrol() {
     Number ly = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
     Number rx = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-    drive.driverControl(heading, lx, ly, rx, true);
+    drive.driverControl(heading, lx, ly, rx, false);
 
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
       intake.move(127);
