@@ -85,16 +85,12 @@ void opcontrol() {
 
     drive.driverControl(heading, lx, ly, rx, false);
 
-    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
       intake.move(127);
-      liftBelt.move(127);
-    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+    else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
       intake.move(-127);
-      liftBelt.move(-127);
-    } else {
+    else
       intake.move(0);
-      liftBelt.move(0);
-    }
 
     pros::delay(50);
   }

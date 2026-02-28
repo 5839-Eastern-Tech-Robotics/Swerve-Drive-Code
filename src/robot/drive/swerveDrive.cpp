@@ -83,11 +83,11 @@ void SwerveDrive::driverControl(Angle heading, Number fwdVel, Number strVel, Num
 	// 	trnVel = stabilityPID.update((prevHeading - heading).convert(1_stDeg));
 	// }
 
-	if (absoluteControl) {
-		float tmp = fwdVel * units::cos(heading) - strVel * units::sin(heading);
-		strVel = fwdVel * units::sin(heading) + strVel * units::cos(heading);
-		fwdVel = tmp;
-	}
+	// if (absoluteControl) {
+	// 	float tmp = fwdVel * units::cos(heading) - strVel * units::sin(heading);
+	// 	strVel = fwdVel * units::sin(heading) + strVel * units::cos(heading);
+	// 	fwdVel = tmp;
+	// }
 
 	holonomic(fwdVel, strVel, std::clamp(trnVel.convert(1), -128.0, 127.0));
 }

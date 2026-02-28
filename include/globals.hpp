@@ -12,7 +12,6 @@
 extern pros::IMU imu;
 
 extern pros::MotorGroup intake;
-extern pros::Motor liftBelt;
 
 extern pros::MotorCartridge driveCartridge;
 extern Number driveRatio;
