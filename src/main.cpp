@@ -92,6 +92,12 @@ void opcontrol() {
     else
       intake.move(0);
 
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1))
+      ramp.toggle();
+
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
+      descorer.toggle();
+    
     pros::delay(50);
   }
 }

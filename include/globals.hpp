@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pros/abstract_motor.hpp"
+#include "pros/adi.hpp"
 #include "pros/imu.hpp"
 #include "pros/misc.hpp"
 #include "pros/motor_group.hpp"
@@ -10,8 +11,9 @@
 #include "units/units.hpp"
 
 extern pros::IMU imu;
-
 extern pros::MotorGroup intake;
+extern pros::adi::Pneumatics descorer;
+extern pros::adi::Pneumatics ramp;
 
 extern pros::MotorCartridge driveCartridge;
 extern Number driveRatio;

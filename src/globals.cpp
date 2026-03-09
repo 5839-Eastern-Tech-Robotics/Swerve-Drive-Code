@@ -1,6 +1,7 @@
 #include "globals.hpp"
 
 #include "pros/abstract_motor.hpp"
+#include "pros/adi.hpp"
 #include "pros/imu.hpp"
 #include "pros/misc.h"
 #include "pros/misc.hpp"
@@ -11,15 +12,16 @@
 #include "units/units.hpp"
 
 pros::IMU imu{14};
-
 pros::MotorGroup intake{6, 7};
+pros::adi::Pneumatics descorer{'B', false};
+pros::adi::Pneumatics ramp{'C', false};
 
 pros::MotorCartridge driveCartridge = pros::MotorCartridge::blue;
 Number driveRatio = 1.0 / 2.0;
 Length driveWheelDiameter = 2_in;
 
 pros::MotorCartridge rotateCartridge = pros::MotorCartridge::green;
-Number rotateRatio =  1.0 / 5.0;
+Number rotateRatio =  12.0 / 66.0;
 libmavnetics::PID rotateMotorPID{
 	1,
 	0, 
