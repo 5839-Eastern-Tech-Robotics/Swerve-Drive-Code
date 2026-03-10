@@ -5,9 +5,9 @@
 #include "pros/misc.h"
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
-#include "units/Angle.hpp"
-#include "units/units.hpp"
+#include "robot/utils/rotation2d.hpp"
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 
@@ -77,13 +77,13 @@ void autonomous() {}
  */
 void opcontrol() {
   while (true) {
-    Angle heading{-imu.get_heading() + 90};
+    libmavnetics::Rotation2D heading{-imu.get_heading() * 1_deg + 90_deg};
 
-    Number lx = -controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
-    Number ly = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-    Number rx = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+    std::int32_t lx = -controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
+    std::int32_t ly = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+    std::int32_t rx = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-    drive.driverControl(heading, lx, ly, rx, false);
+    // drive.driverControl(heading, lx, ly, rx, false);
 
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
       intake.move(127);
@@ -97,7 +97,7 @@ void opcontrol() {
 
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
       descorer.toggle();
-    
+
     pros::delay(50);
   }
 }

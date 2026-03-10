@@ -1,58 +1,52 @@
 #pragma once
 
-#include "pros/motors.hpp"
-#include "robot/utils/pid.hpp"
-#include "units/Angle.hpp"
-#include "units/Vector2D.hpp"
-#include "units/units.hpp"
-#include <cstdint>
-#include <vector>
+#include <array>
+#include <cstddef>
+
+#include "robot/drive/odometry.hpp"
+#include "robot/utils/pose2d.hpp"
+#include "swerveModule.hpp"
+#include "units/angle.h"
+#include "units/angular_velocity.h"
+#include "units/time.h"
+#include "units/velocity.h"
 
 namespace libmavnetics {
 
-struct SwerveModule {
-    pros::Motor driveMotor;
-    pros::Motor rotateMotor;
-    libmavnetics::PID rotatePID;
-    units::Vector2D<Length> locator;
-    Length wheelDiameter = 2.75_in;
-    Number driveRatio = 1;
-    Number rotateRatio = 1;
+template <size_t numModules> class SwerveDriveKinematics {
 
-    /**
-     * @brief Get the current angle the module is facing
-     * 
-     * @return Angle the angle between 0 and 360 degrees
-     */
-    Angle getModuleAngle();
-
-    /**
-     * @brief rotates the pod to the specified angle constrained to 360
-     * takes the shortest path possible
-     * 
-     * @param angle 
-     * @return -1 if motor velocity needs to be flipped else 1
-     */
-    int rotateTo(Angle angle);
-
-    /**
-     * @brief spin the motors at the desired velocity
-     * 
-     * @param vel 0-127
-     */
-    void move(int8_t vel);
 };
 
 class SwerveDrive {
-public:
-    SwerveDrive(std::vector<SwerveModule> modules, PID stabilityPID);
+  SwerveDrive(std::array<SwerveModule, 4> modules,
+              SwerveDriveKinematics<4> kinematics, Odometry odometry);
 
-    void holonomic(Number fwdVel, Number strVel, Number trnVel);
-    void driverControl(Angle heading, Number fwdVel, Number strVel, Number trnVel, bool absoluteControl);
+  void update();
+
+  void drive(units::meters_per_second_t xSpeed,
+             units::meters_per_second_t ySpeed,
+             units::radians_per_second rotSpeed, bool fieldRelative,
+             units::second_t period);
+
+  void reset();
+  void setModuleStates(std::array<SwerveModuleState, 4> desiredStates);
+
+  units::degree_t getHeading();
+  void tareHeading();
+  units::degrees_per_second_t getTurnVelocity();
+
+  Pose2D getPose();
+  void resetOdometry(Pose2D pose);
 
 private:
-    std::vector<SwerveModule> modules;
-    PID stabilityPID;
-    Angle prevHeading = 0_stDeg;
+  SwerveModule m_frontLeft;
+  SwerveModule m_backLeft;
+  SwerveModule m_frontRight;
+  SwerveModule m_backRight;
+
+  SwerveDriveKinematics<4> m_kinematics{};
+
+  Odometry m_odometry;
 };
+
 } // namespace libmavnetics

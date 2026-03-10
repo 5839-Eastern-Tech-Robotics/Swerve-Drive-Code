@@ -29,7 +29,40 @@ enum class AngularDirection {
  * sgn(0); // returns 1 (by convention)
  * @endcode
  */
-template <typename T> constexpr T sgn(T value) { return value < 0 ? -1 : 1; }
+template <typename T> constexpr T sgn(T& value) { return value < 0 ? -1 : 1; }
+
+/**
+ * @brief Linearly interpolates a value from start to end at time t
+ *
+ * @param start start value to interpolate from
+ * @param end end value to interpolate to
+ * @param t number between 0-1 signifying where in the interplation to sample from
+ * @return the interpolated value
+ */
+template<typename T>
+constexpr T lerp(T& start, T& end, double t) {
+    return start + (end - start) * t;
+}
+
+/**
+ * Returns modulus of input.
+ *
+ * @param input        Input value to wrap.
+ * @param minimumInput The minimum value expected from the input.
+ * @param maximumInput The maximum value expected from the input.
+ */
+template <typename T>
+constexpr T inputModulus(T input, T minimumInput, T maximumInput) {
+  T modulus = maximumInput - minimumInput;
+
+  int numMax = (input - minimumInput) / modulus;
+  input -= numMax * modulus;
+
+  int numMin = (input - maximumInput) / modulus;
+  input -= numMin * modulus;
+
+  return input;
+}
 
 /**
  * @brief Sanitize an angle so its positive and within the range of 0 to 2pi or
