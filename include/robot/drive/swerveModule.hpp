@@ -55,7 +55,7 @@ class SwerveModule {
 public:
   SwerveModule(pros::Motor driveMotor, PID drivePIDController, float driveGearRatio,
                pros::Motor turnMotor, PID turnPIDController, float turnGearRatio,
-               units::meter_t driveWheelDiameter, Translation2D location);
+               units::meter_t driveWheelDiameter);
 
   constexpr Translation2D getModuleLocation() { return location; };
 

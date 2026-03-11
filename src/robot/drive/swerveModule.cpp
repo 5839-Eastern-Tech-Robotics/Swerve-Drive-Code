@@ -12,11 +12,11 @@ namespace libmavnetics {
 SwerveModule::SwerveModule(pros::Motor driveMotor, PID drivePIDController,
                            float driveGearRatio, pros::Motor turnMotor,
                            PID turnPIDController, float turnGearRatio,
-                           units::meter_t driveWheelDiameter, Translation2D location)
+                           units::meter_t driveWheelDiameter)
     : driveMotor(driveMotor), drivePID(drivePIDController),
       driveGearRatio(driveGearRatio), turnMotor(turnMotor),
       turnPID(turnPIDController), turnGearRatio(turnGearRatio),
-      driveWheelDiameter(driveWheelDiameter), location(location) {
+      driveWheelDiameter(driveWheelDiameter) {
   turnPID.enableContinuousInput(-180, 180);
 }
 

@@ -45,6 +45,24 @@ constexpr T lerp(T& start, T& end, double t) {
 }
 
 /**
+ * @brief Exponential moving average
+ *
+ * @param current current measurement
+ * @param previous previous output
+ * @param smooth smoothing factor (0-1). 1 means no smoothing, 0 means no change
+ * @return the smoothed output
+ *
+ * @b Example
+ * @code {.cpp}
+ * ema(10, 0, 0.5); // returns 5
+ * @endcode
+ */
+template<typename T>
+constexpr T ema(T current, T previous, float smooth) {
+    return (current * smooth) + (previous * (1 - smooth));
+}
+
+/**
  * Returns modulus of input.
  *
  * @param input        Input value to wrap.
