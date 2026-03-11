@@ -10,13 +10,14 @@
 namespace libmavnetics {
 
 SwerveModule::SwerveModule(pros::Motor driveMotor, PID drivePIDController,
-                           float driveGearRatio, pros::Motor turnMotor,
-                           PID turnPIDController, float turnGearRatio,
-                           units::meter_t driveWheelDiameter)
+                           const float driveGearRatio, pros::Motor turnMotor,
+                           PID turnPIDController, const float turnGearRatio,
+                           const units::meter_t driveWheelDiameter)
     : driveMotor(driveMotor), drivePID(drivePIDController),
       driveGearRatio(driveGearRatio), turnMotor(turnMotor),
       turnPID(turnPIDController), turnGearRatio(turnGearRatio),
       driveWheelDiameter(driveWheelDiameter) {
+  // allow the pid to loop between -180 deg and 180 deg
   turnPID.enableContinuousInput(-180, 180);
 }
 

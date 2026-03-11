@@ -89,6 +89,8 @@ void Odometry::initUpdateLoop() {
   }
 }
 
+bool Odometry::isTaskRunning() { return this->trackingTask != nullptr; }
+
 void Odometry::calibrate(bool startTask, bool calibrateImu) {
   if (calibrateImu)
     calibrateIMU(this->imu);
@@ -154,16 +156,16 @@ void Odometry::update() {
     localX = deltaHorizontal;
     localY = deltaVertical;
   } else {
-    localX = 2.0 * units::sin(deltaHeading / 2.0) *
+    localX = 2.0 * units::math::sin(deltaHeading / 2.0) *
              (deltaHorizontal / deltaHeading.value() + horizontalOffset);
-    localY = 2.0 * units::sin(deltaHeading / 2.0) *
+    localY = 2.0 * units::math::sin(deltaHeading / 2.0) *
              (deltaVertical / deltaHeading.value() + verticalOffset);
   }
 
   Pose2D prevPose = pose;
   pose.transformBy({
-    localY * units::sin(averageHeading) - localX * units::cos(averageHeading),
-    localY * units::cos(averageHeading) + localX * units::sin(averageHeading),
+    localY * units::math::sin(averageHeading) - localX * units::math::cos(averageHeading),
+    localY * units::math::cos(averageHeading) + localX * units::math::sin(averageHeading),
     deltaHeading
   });
 

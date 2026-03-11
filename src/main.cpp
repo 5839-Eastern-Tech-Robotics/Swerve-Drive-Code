@@ -11,6 +11,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+// units library: https://github.com/nholthaus/units
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -24,6 +26,11 @@ void initialize() {
     rotateFL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     rotateBL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     rotateBR.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+
+    driveFR.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+    driveFL.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+    driveBL.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+    driveBR.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
 
     if (imu.reset(true) != 1 && imu.reset(true) != 1 && imu.reset(true) != 1)
         controller.rumble("...");

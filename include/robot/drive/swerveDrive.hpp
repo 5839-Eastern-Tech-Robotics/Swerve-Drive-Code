@@ -5,8 +5,9 @@
 
 #include "robot/drive/odometry.hpp"
 #include "robot/drive/swerveModule.hpp"
+#include "robot/utils/chassisSpeeds.hpp"
 #include "robot/utils/pose2d.hpp"
-#include "swerveModule.hpp"
+#include "robot/utils/rotation2d.hpp"
 #include "units/angle.h"
 #include "units/angular_velocity.h"
 #include "units/time.h"
@@ -14,13 +15,13 @@
 
 namespace libmavnetics {
 
-// WheelSpeeds std::array<SwerveModuleState, numModules>
-// WheelPositions std::array<SwerveModulePosition, numModules>
-
 // allwpilib/wpimath/src/main/native/include/frc/kinematics
 
 template <size_t numModules> class SwerveDriveKinematics {
- public:
+public:
+  using WheelSpeeds = std::array<SwerveModuleState, numModules>;
+  using WheelPositions = std::array<SwerveModulePosition, numModules>;
+
   /**
    * Performs forward kinematics to return the resulting chassis speed from the
    * wheel speeds. This method is often used for odometry -- determining the
@@ -30,8 +31,7 @@ template <size_t numModules> class SwerveDriveKinematics {
    * @param wheelSpeeds The speeds of the wheels.
    * @return The chassis speed.
    */
-  virtual ChassisSpeeds ToChassisSpeeds(
-      const std::array<SwerveModulePosition, numModules>& wheelSpeeds) const = 0;
+  ChassisSpeeds toChassisSpeeds(const WheelSpeeds &wheelSpeeds) const;
 
   /**
    * Performs inverse kinematics to return the wheel speeds from a desired
@@ -41,8 +41,7 @@ template <size_t numModules> class SwerveDriveKinematics {
    * @param chassisSpeeds The desired chassis speed.
    * @return The wheel speeds.
    */
-  virtual std::array<SwerveModulePosition, numModules> ToWheelSpeeds(
-      const ChassisSpeeds& chassisSpeeds) const = 0;
+  WheelSpeeds toWheelSpeeds(const ChassisSpeeds &chassisSpeeds) const;
 
   /**
    * Performs forward kinematics to return the resulting Pose2d from the given
@@ -55,8 +54,7 @@ template <size_t numModules> class SwerveDriveKinematics {
    *
    * @return The resulting Pose2d in the robot's movement.
    */
-  virtual Pose2d ToPose2d(const std::array<SwerveModulePosition, numModules>& start,
-                            const std::array<SwerveModulePosition, numModules>& end) const = 0;
+  Pose2D toPose2D(const WheelPositions &start, const WheelPositions &end) const;
 
   /**
    * Performs interpolation between two values.
@@ -67,31 +65,41 @@ template <size_t numModules> class SwerveDriveKinematics {
    * bounded to [0, 1].
    * @return The interpolated value.
    */
-  virtual std::array<SwerveModulePosition, numModules> Interpolate(const std::array<SwerveModulePosition, numModules>& start,
-                                     const std::array<SwerveModulePosition, numModules>& end,
-                                     double t) const = 0;
+  WheelPositions interpolate(const WheelPositions &start,
+                             const WheelPositions &end, double t) const;
+
+  static void
+  desaturateWheelSpeeds(WheelSpeeds *moduleStates,
+                        units::meters_per_second_t attainableMaxSpeed);
 };
 
 class SwerveDrive {
+  /**
+   * Initializes the swerve drive
+   * @param modules the swerve drive modules in the order [fl, fr, bl, br]
+   */
   SwerveDrive(std::array<SwerveModule, 4> modules,
               SwerveDriveKinematics<4> kinematics, Odometry odometry);
 
+  void calibrate();
   void update();
 
   void drive(units::meters_per_second_t xSpeed,
              units::meters_per_second_t ySpeed,
-             units::radians_per_second rotSpeed, bool fieldRelative,
-             units::second_t period);
+             units::radians_per_second_t rotSpeed, bool fieldRelative = true,
+             units::second_t period = 20_ms);
 
   void reset();
   void setModuleStates(std::array<SwerveModuleState, 4> desiredStates);
 
-  units::degree_t getHeading();
-  void tareHeading();
-  units::degrees_per_second_t getTurnVelocity();
-
+  Rotation2D getHeading();
   Pose2D getPose();
-  void resetOdometry(Pose2D pose);
+
+  void setPose(units::meter_t x, units::meter_t y, units::degree_t theta);
+  void setPose(units::meter_t x, units::meter_t y, Rotation2D theta);
+  void setPose(Translation2D position, units::degree_t theta);
+  void setPose(Translation2D position, Rotation2D theta);
+  void setPose(Pose2D pose);
 
 private:
   SwerveModule m_frontLeft;
@@ -105,24 +113,3 @@ private:
 };
 
 } // namespace libmavnetics
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
-#pragma once
-
-#include <wpi/SymbolExports.h>
-
-#include "frc/geometry/Twist2d.h"
-#include "frc/kinematics/ChassisSpeeds.h"
-
-//namespace frc {
-/**
- * Helper class that converts a chassis velocity (dx, dy, and dtheta components)
- * into individual wheel speeds. Robot code should not use this directly-
- * Instead, use the particular type for your drivetrain (e.g.,
- * DifferentialDriveKinematics).
- *
- * Inverse kinematics converts a desired chassis speed into wheel speeds whereas
- * forward kinematics converts wheel speeds into chassis speed.
- */

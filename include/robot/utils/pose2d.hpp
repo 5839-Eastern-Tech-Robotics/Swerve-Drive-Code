@@ -32,8 +32,7 @@ public:
    * @param rotation The rotational component of the pose.
    */
   constexpr Pose2D(Translation2D translation, Rotation2D rotation)
-      : m_translation{std::move(translation)}, m_rotation{std::move(rotation)} {
-  }
+      : m_translation{std::move(translation)}, m_rotation{std::move(rotation)} {}
 
   /**
    * Constructs a pose with x and y translations instead of a separate
@@ -207,7 +206,6 @@ public:
    * @return The twist that maps this to end.
    */
   constexpr Pose2D log(const Pose2D &end) const;
-  }
 
 private:
   Translation2D m_translation;

@@ -44,6 +44,7 @@ public:
            pros::Imu *imu);
 
   void update();
+  bool isTaskRunning();
 
   void calibrate(bool startTask = true, bool calibrateIMU = true);
   void resetPose();
@@ -54,8 +55,8 @@ public:
   void setPose(Translation2D position, Rotation2D theta);
   void setPose(Pose2D pose);
 
-  Pose2D getPose();
 
+  Pose2D getPose();
 private:
   pros::Task *trackingTask = nullptr;
 
