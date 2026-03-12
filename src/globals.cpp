@@ -1,5 +1,9 @@
 #include "globals.hpp"
 
+#include "libmavnetics/drive/odometry.hpp"
+#include "libmavnetics/drive/swerveDrive.hpp"
+#include "libmavnetics/drive/swerveModule.hpp"
+#include "libmavnetics/utils/pid.hpp"
 #include "pros/abstract_motor.hpp"
 #include "pros/adi.hpp"
 #include "pros/imu.hpp"
@@ -8,10 +12,6 @@
 #include "pros/motor_group.hpp"
 #include "pros/motors.hpp"
 #include "pros/rotation.hpp"
-#include "robot/drive/odometry.hpp"
-#include "robot/drive/swerveDrive.hpp"
-#include "robot/drive/swerveModule.hpp"
-#include "robot/utils/pid.hpp"
 #include "units/length.h"
 
 pros::IMU imu{14};
