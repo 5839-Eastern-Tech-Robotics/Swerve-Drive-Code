@@ -1,5 +1,8 @@
 #pragma once
 
+#include "pros/abstract_motor.hpp"
+#include "units/angular_velocity.h"
+
 namespace libmavnetics {
 
 /**
@@ -29,19 +32,19 @@ enum class AngularDirection {
  * sgn(0); // returns 1 (by convention)
  * @endcode
  */
-template <typename T> constexpr T sgn(T& value) { return value < 0 ? -1 : 1; }
+template <typename T> constexpr T sgn(T &value) { return value < 0 ? -1 : 1; }
 
 /**
  * @brief Linearly interpolates a value from start to end at time t
  *
  * @param start start value to interpolate from
  * @param end end value to interpolate to
- * @param t number between 0-1 signifying where in the interplation to sample from
+ * @param t number between 0-1 signifying where in the interplation to sample
+ * from
  * @return the interpolated value
  */
-template<typename T>
-constexpr T lerp(T& start, T& end, double t) {
-    return start + (end - start) * t;
+template <typename T> constexpr T lerp(T &start, T &end, double t) {
+  return start + (end - start) * t;
 }
 
 /**
@@ -57,9 +60,8 @@ constexpr T lerp(T& start, T& end, double t) {
  * ema(10, 0, 0.5); // returns 5
  * @endcode
  */
-template<typename T>
-constexpr T ema(T current, T previous, float smooth) {
-    return (current * smooth) + (previous * (1 - smooth));
+template <typename T> constexpr T ema(T current, T previous, float smooth) {
+  return (current * smooth) + (previous * (1 - smooth));
 }
 
 /**
@@ -123,4 +125,20 @@ constexpr float sanitizeAngle(float angle, bool radians = true);
  */
 float angleError(float target, float position, bool radians = true,
                  AngularDirection direction = AngularDirection::AUTO);
+
+constexpr units::revolutions_per_minute_t getRPM(const pros::MotorGearset gearset) {
+  switch (gearset) {
+  case pros::MotorGearset::red:
+    return 100_rpm;
+
+  case pros::MotorGearset::blue:
+    return 600_rpm;
+
+  case pros::MotorGearset::green:
+  case pros::MotorGearset::invalid:
+  default:
+    return 200_rpm;
+  }
+}
+
 } // namespace libmavnetics

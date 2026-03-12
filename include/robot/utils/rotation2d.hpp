@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "Eigen/Core"
 #include "gcem.hpp"
 #include "units/angle.h"
 

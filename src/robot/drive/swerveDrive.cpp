@@ -9,15 +9,21 @@
 namespace libmavnetics {
 
 SwerveDrive::SwerveDrive(std::array<SwerveModule, 4> modules,
-                         SwerveDriveKinematics<4> kinematics, Odometry odometry)
+                         units::meter_t track_width, units::meter_t wheel_base,
+                         Odometry *odometry)
     : m_frontLeft(modules[0]), m_backLeft(modules[2]), m_frontRight(modules[1]),
-      m_backRight(modules[3]), m_kinematics(kinematics), m_odometry(odometry) {}
+      m_backRight(modules[3]), m_odometry(odometry), track_width(track_width),
+      wheel_base(wheel_base),
+      m_kinematics(Translation2D{wheel_base / 2.0, track_width / 2.0},
+                   Translation2D{wheel_base / 2.0, -track_width / 2.0},
+                   Translation2D{-wheel_base / 2.0, track_width / 2.0},
+                   Translation2D{-wheel_base / 2.0, -track_width / 2.0}) {}
 
-void SwerveDrive::calibrate() { m_odometry.calibrate(); }
+void SwerveDrive::calibrate() { m_odometry->calibrate(); }
 
 void SwerveDrive::update() {
-  if (!m_odometry.isTaskRunning())
-    m_odometry.update();
+  if (!m_odometry->isTaskRunning())
+    m_odometry->update();
 }
 
 void SwerveDrive::drive(units::meters_per_second_t xSpeed,
@@ -27,7 +33,7 @@ void SwerveDrive::drive(units::meters_per_second_t xSpeed,
   auto states = m_kinematics.toWheelSpeeds(ChassisSpeeds::discretize(
       fieldRelative
           ? ChassisSpeeds::fromFieldRelativeSpeeds(
-                xSpeed, ySpeed, rotSpeed, m_odometry.getPose().rotation())
+                xSpeed, ySpeed, rotSpeed, m_odometry->getPose().rotation())
           : ChassisSpeeds{xSpeed, ySpeed, rotSpeed},
       period));
 
@@ -59,29 +65,29 @@ void SwerveDrive::setModuleStates(
   m_backRight.setDesiredState(br);
 }
 
-void SwerveDrive::reset() { m_odometry.resetPose(); }
+void SwerveDrive::reset() { m_odometry->resetPose(); }
 
-Rotation2D SwerveDrive::getHeading() { return m_odometry.getPose().rotation(); }
+Rotation2D SwerveDrive::getHeading() { return m_odometry->getPose().rotation(); }
 
-Pose2D SwerveDrive::getPose() { return m_odometry.getPose(); }
+Pose2D SwerveDrive::getPose() { return m_odometry->getPose(); }
 
 void SwerveDrive::setPose(units::meter_t x, units::meter_t y,
                           units::degree_t theta) {
-  m_odometry.setPose(x, y, theta);
+  m_odometry->setPose(x, y, theta);
 }
 
 void SwerveDrive::setPose(units::meter_t x, units::meter_t y,
                           Rotation2D theta) {
-  m_odometry.setPose(x, y, theta);
+  m_odometry->setPose(x, y, theta);
 }
 
 void SwerveDrive::setPose(Translation2D position, units::degree_t theta) {
-  m_odometry.setPose(position, theta);
+  m_odometry->setPose(position, theta);
 }
 
 void SwerveDrive::setPose(Translation2D position, Rotation2D theta) {
-  m_odometry.setPose(position, theta);
+  m_odometry->setPose(position, theta);
 }
 
-void SwerveDrive::setPose(Pose2D pose) { m_odometry.setPose(pose); }
+void SwerveDrive::setPose(Pose2D pose) { m_odometry->setPose(pose); }
 } // namespace libmavnetics

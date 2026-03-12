@@ -55,33 +55,14 @@ struct SwerveModulePosition {
 class SwerveModule {
 public:
   SwerveModule(pros::Motor driveMotor, PID drivePIDController,
-               const float driveGearRatio, pros::Motor turnMotor,
-               PID turnPIDController, const float turnGearRatio,
+               const double driveGearRatio, pros::Motor turnMotor,
+               PID turnPIDController, const double turnGearRatio,
                const units::meter_t driveWheelDiameter);
 
   SwerveModuleState getState();
   SwerveModulePosition getPosition();
 
-  constexpr units::meters_per_second_t maxSpeed() const {
-    switch (driveMotor.get_gearing()) {
-    case pros::MotorGearset::red:
-      return units::meters_per_second_t{100 * 60 * driveGearRatio *
-                                        driveWheelDiameter.value() *
-                                        units::constants::pi};
-    case pros::MotorGearset::green:
-      return units::meters_per_second_t{200 * 60 * driveGearRatio *
-                                        driveWheelDiameter.value() *
-                                        units::constants::pi};
-    case pros::MotorGearset::blue:
-      return units::meters_per_second_t{600 * 60 * driveGearRatio *
-                                        driveWheelDiameter.value() *
-                                        units::constants::pi};
-    case pros::MotorGearset::invalid:
-      return units::meters_per_second_t{200 * 60 * driveGearRatio *
-                                        driveWheelDiameter.value() *
-                                        units::constants::pi};
-    }
-  }
+  units::meters_per_second_t maxSpeed();
 
   void setDesiredState(SwerveModuleState &state);
   void reset();
@@ -89,7 +70,7 @@ public:
 private:
   pros::Motor driveMotor, turnMotor;
   PID drivePID, turnPID;
-  const float driveGearRatio, turnGearRatio;
+  const double driveGearRatio, turnGearRatio;
   const units::meter_t driveWheelDiameter;
 };
 

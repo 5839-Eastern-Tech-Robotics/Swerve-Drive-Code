@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "rotation2d.hpp"
-#include "translation2d.hpp"
+#include "robot/utils/rotation2d.hpp"
+#include "robot/utils/translation2d.hpp"
 #include "units/length.h"
 #include <utility>
 
@@ -32,7 +32,8 @@ public:
    * @param rotation The rotational component of the pose.
    */
   constexpr Pose2D(Translation2D translation, Rotation2D rotation)
-      : m_translation{std::move(translation)}, m_rotation{std::move(rotation)} {}
+      : m_translation{std::move(translation)}, m_rotation{std::move(rotation)} {
+  }
 
   /**
    * Constructs a pose with x and y translations instead of a separate
@@ -211,5 +212,68 @@ private:
   Translation2D m_translation;
   Rotation2D m_rotation;
 };
+
+constexpr Pose2D Pose2D::operator-(const Pose2D &other) const {
+  const auto pose = this->relativeTo(other);
+  return Pose2D{pose.translation(), pose.rotation()};
+}
+
+constexpr Pose2D Pose2D::transformBy(const Pose2D &other) const {
+  return {m_translation + (other.translation().rotateBy(m_rotation)),
+          other.rotation().rotateBy(m_rotation)};
+}
+
+constexpr Pose2D Pose2D::relativeTo(const Pose2D &other) const {
+  Translation2D translation = (this->translation() - other.translation()).rotateBy(-other.rotation());
+  Rotation2D rotation = this->rotation().relativeTo(other.rotation());
+  return {translation, rotation};
+}
+
+constexpr Pose2D Pose2D::exp(const Pose2D &twist) const {
+  const auto dx = twist.x();
+  const auto dy = twist.y();
+  const auto dtheta = twist.rotation().radians().value();
+
+  const auto sinTheta = twist.rotation().sin();
+  const auto cosTheta = twist.rotation().cos();
+
+  double s, c;
+  if (gcem::abs(dtheta) < 1E-9) {
+    s = 1.0 - 1.0 / 6.0 * dtheta * dtheta;
+    c = 0.5 * dtheta;
+  } else {
+    s = sinTheta / dtheta;
+    c = (1 - cosTheta) / dtheta;
+  }
+
+  const Pose2D transform{Translation2D{dx * s - dy * c, dx * c + dy * s},
+                              Rotation2D{cosTheta, sinTheta}};
+
+  return *this + transform;
+}
+
+constexpr Pose2D Pose2D::log(const Pose2D &end) const {
+  const auto transform = end.relativeTo(*this);
+  const auto dtheta = transform.rotation().radians().value();
+  const auto halfDtheta = dtheta / 2.0;
+
+  const auto cosMinusOne = transform.rotation().cos() - 1;
+
+  double halfThetaByTanOfHalfDtheta;
+
+  if (gcem::abs(cosMinusOne) < 1E-9) {
+    halfThetaByTanOfHalfDtheta = 1.0 - 1.0 / 12.0 * dtheta * dtheta;
+  } else {
+    halfThetaByTanOfHalfDtheta =
+        -(halfDtheta * transform.rotation().sin()) / cosMinusOne;
+  }
+
+  const Translation2D translationPart =
+      transform.translation().rotateBy(
+          {halfThetaByTanOfHalfDtheta, -halfDtheta}) *
+      gcem::hypot(halfThetaByTanOfHalfDtheta, halfDtheta);
+
+  return {translationPart.x(), translationPart.y(), units::radian_t{dtheta}};
+}
 
 } // namespace libmavnetics

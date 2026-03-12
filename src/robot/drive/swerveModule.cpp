@@ -1,7 +1,5 @@
 #include "robot/drive/swerveModule.hpp"
-#include "globals.hpp"
 #include "robot/utils/rotation2d.hpp"
-#include "robot/utils/translation2d.hpp"
 #include "units/angle.h"
 #include "units/length.h"
 #include "units/time.h"
@@ -10,8 +8,8 @@
 namespace libmavnetics {
 
 SwerveModule::SwerveModule(pros::Motor driveMotor, PID drivePIDController,
-                           const float driveGearRatio, pros::Motor turnMotor,
-                           PID turnPIDController, const float turnGearRatio,
+                           const double driveGearRatio, pros::Motor turnMotor,
+                           PID turnPIDController, const double turnGearRatio,
                            const units::meter_t driveWheelDiameter)
     : driveMotor(driveMotor), drivePID(drivePIDController),
       driveGearRatio(driveGearRatio), turnMotor(turnMotor),
@@ -36,6 +34,25 @@ SwerveModulePosition SwerveModule::getPosition() {
 void SwerveModule::reset() {
   driveMotor.tare_position();
   turnMotor.tare_position();
+}
+
+units::meters_per_second_t SwerveModule::maxSpeed() {
+  switch (driveMotor.get_gearing()) {
+  case pros::MotorGearset::red:
+    return units::meters_per_second_t{100.0 * 60.0 * driveGearRatio *
+                                      driveWheelDiameter.value() *
+                                      units::constants::pi};
+  case pros::MotorGearset::blue:
+    return units::meters_per_second_t{600.0 / 60.0 * driveGearRatio *
+                                      driveWheelDiameter.value() *
+                                      units::constants::pi};
+  case pros::MotorGearset::green:
+  case pros::MotorGearset::invalid:
+  default:
+    return units::meters_per_second_t{200.0 * 60.0 * driveGearRatio *
+                                      driveWheelDiameter.value() *
+                                      units::constants::pi};
+  }
 }
 
 void SwerveModule::setDesiredState(SwerveModuleState &state) {

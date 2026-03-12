@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "rotation2d.hpp"
+#include <algorithm>
+#include <initializer_list>
+#include <span>
+
+#include "Eigen/Core"
+#include "robot/utils/rotation2d.hpp"
 #include "units/area.h"
 #include "units/length.h"
 #include "units/math.h"
@@ -20,15 +25,11 @@ namespace libmavnetics {
  * is positive X and left is positive Y.
  */
 class Translation2D {
- public:
+public:
   /**
    * Constructs a Translation2D with X and Y components equal to zero.
    */
   constexpr Translation2D() = default;
-  constexpr Translation2D(const Translation2D &) = default;
-  constexpr Translation2D &operator=(const Translation2D &) = default;
-  constexpr Translation2D(Translation2D &&) = default;
-  constexpr Translation2D &operator=(Translation2D &&) = default;
 
   /**
    * Constructs a Translation2D with the X and Y components equal to the
@@ -47,7 +48,7 @@ class Translation2D {
    * @param distance The distance from the origin to the end of the translation.
    * @param angle The angle between the x-axis and the translation vector.
    */
-  constexpr Translation2D(units::meter_t distance, const Rotation2D& angle)
+  constexpr Translation2D(units::meter_t distance, const Rotation2D &angle)
       : m_x{distance * angle.cos()}, m_y{distance * angle.sin()} {}
 
   /**
@@ -59,7 +60,7 @@ class Translation2D {
    *
    * @return The distance between the two translations.
    */
-  constexpr units::meter_t distance(const Translation2D& other) const {
+  constexpr units::meter_t distance(const Translation2D &other) const {
     return units::math::hypot(other.m_x - m_x, other.m_y - m_y);
   }
 
@@ -74,8 +75,8 @@ class Translation2D {
    * @param other The translation to compute the squared distance to.
    * @return The square of the distance between the two translations.
    */
-  constexpr units::square_meter_t squaredDistance(
-      const Translation2D& other) const {
+  constexpr units::square_meter_t
+  squaredDistance(const Translation2D &other) const {
     return units::math::pow<2>(other.m_x - m_x) +
            units::math::pow<2>(other.m_y - m_y);
   }
@@ -139,7 +140,7 @@ class Translation2D {
    *
    * @return The new rotated translation.
    */
-  constexpr Translation2D rotateBy(const Rotation2D& other) const {
+  constexpr Translation2D rotateBy(const Rotation2D &other) const {
     return {m_x * other.cos() - m_y * other.sin(),
             m_x * other.sin() + m_y * other.cos()};
   }
@@ -156,8 +157,8 @@ class Translation2D {
    * @param rot The rotation to rotate the translation by.
    * @return The new rotated translation.
    */
-  constexpr Translation2D rotateAround(const Translation2D& other,
-                                       const Rotation2D& rot) const {
+  constexpr Translation2D rotateAround(const Translation2D &other,
+                                       const Rotation2D &rot) const {
     return {(m_x - other.x()) * rot.cos() - (m_y - other.y()) * rot.sin() +
                 other.x(),
             (m_x - other.x()) * rot.sin() + (m_y - other.y()) * rot.cos() +
@@ -173,7 +174,7 @@ class Translation2D {
    * @param other The translation to compute the dot product with.
    * @return The dot product between the two translations.
    */
-  constexpr units::square_meter_t dot(const Translation2D& other) const {
+  constexpr units::square_meter_t dot(const Translation2D &other) const {
     return m_x * other.x() + m_y * other.y();
   }
 
@@ -186,7 +187,7 @@ class Translation2D {
    * @param other The translation to compute the cross product with.
    * @return The cross product between the two translations.
    */
-  constexpr units::square_meter_t cross(const Translation2D& other) const {
+  constexpr units::square_meter_t cross(const Translation2D &other) const {
     return m_x * other.y() - m_y * other.x();
   }
 
@@ -200,7 +201,7 @@ class Translation2D {
    *
    * @return The sum of the translations.
    */
-  constexpr Translation2D operator+(const Translation2D& other) const {
+  constexpr Translation2D operator+(const Translation2D &other) const {
     return {x() + other.x(), y() + other.y()};
   }
 
@@ -214,7 +215,7 @@ class Translation2D {
    *
    * @return The difference between the two translations.
    */
-  constexpr Translation2D operator-(const Translation2D& other) const {
+  constexpr Translation2D operator-(const Translation2D &other) const {
     return *this + -other;
   }
 
@@ -259,14 +260,42 @@ class Translation2D {
    * @param other The other object.
    * @return Whether the two objects are equal.
    */
-  constexpr bool operator==(const Translation2D& other) const {
+  constexpr bool operator==(const Translation2D &other) const {
     return units::math::abs(m_x - other.m_x) < 1E-9_m &&
            units::math::abs(m_y - other.m_y) < 1E-9_m;
   }
 
- private:
+  /**
+   * Returns the nearest Translation2D from a collection of translations
+   * @param translations The collection of translations.
+   * @return The nearest Translation2D from the collection.
+   */
+  constexpr Translation2D
+  nearest(std::span<const Translation2D> translations) const {
+    return *std::min_element(
+        translations.begin(), translations.end(),
+        [this](const Translation2D &a, const Translation2D &b) {
+          return this->distance(a) < this->distance(b);
+        });
+  }
+
+  /**
+   * Returns the nearest Translation2D from a collection of translations
+   * @param translations The collection of translations.
+   * @return The nearest Translation2D from the collection.
+   */
+  constexpr Translation2D
+  nearest(std::initializer_list<Translation2D> translations) const {
+    return *std::min_element(
+        translations.begin(), translations.end(),
+        [this](const Translation2D &a, const Translation2D &b) {
+          return this->distance(a) < this->distance(b);
+        });
+  }
+
+private:
   units::meter_t m_x = 0_m;
   units::meter_t m_y = 0_m;
 };
 
-}  // namespace libmavnetics
+} // namespace libmavnetics
