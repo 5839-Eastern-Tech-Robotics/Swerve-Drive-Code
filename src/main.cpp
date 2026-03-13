@@ -89,23 +89,18 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
+  units::revolutions_per_minute_t moduleWheelSpeed =
+      libmavnetics::getRPM(driveCartridge) * driveRatio;
+
+  units::meters_per_second_t maxLinearSpeed =
+      moduleWheelSpeed.value() / 60.0_s * driveWheelDiameter * std::numbers::pi;
+
+  units::radians_per_second_t maxRotationalSpeed =
+      1_rad * maxLinearSpeed /
+      units::math::hypot(track_width / 2.0, wheel_base / 2.0);
+
   while (true) {
     libmavnetics::Rotation2D heading{-imu.get_heading() * 1_deg + 90_deg};
-
-    // units::meter_t driveWheelDiameter, track_width, wheel_base
-    // std::int32_t controller.get_analog() // returns a number between -127 and
-    // 127
-
-    units::revolutions_per_minute_t moduleWheelSpeed =
-        libmavnetics::getRPM(driveCartridge) * driveRatio;
-
-    units::meters_per_second_t maxLinearSpeed = moduleWheelSpeed.value() /
-                                                60.0_s * driveWheelDiameter *
-                                                std::numbers::pi;
-
-    units::radians_per_second_t maxRotationalSpeed =
-        1_rad * maxLinearSpeed /
-        units::math::hypot(track_width / 2.0, wheel_base / 2.0);
 
     units::meters_per_second_t xSpeed =
         static_cast<double>(
@@ -137,6 +132,6 @@ void opcontrol() {
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
       descorer.toggle();
 
-    pros::delay(50);
+    pros::delay(20);
   }
 }

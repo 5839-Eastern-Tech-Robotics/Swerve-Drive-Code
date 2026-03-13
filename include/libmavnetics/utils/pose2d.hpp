@@ -4,27 +4,31 @@
 
 #pragma once
 
+#include <algorithm>
+#include <initializer_list>
+#include <span>
 #include <utility>
+
+#include "gcem.hpp"
 
 #include "libmavnetics/utils/rotation2d.hpp"
 #include "libmavnetics/utils/translation2d.hpp"
+#include "libmavnetics/utils/twist2d.hpp"
 #include "units/length.h"
 
 namespace libmavnetics {
+
+class Transform2D;
 
 /**
  * Represents a 2D pose containing translational and rotational elements.
  */
 class Pose2D {
-public:
+ public:
   /**
    * Constructs a pose at the origin facing toward the positive X axis.
    */
   constexpr Pose2D() = default;
-  constexpr Pose2D(const Pose2D &) = default;
-  constexpr Pose2D &operator=(const Pose2D &) = default;
-  constexpr Pose2D(Pose2D &&) = default;
-  constexpr Pose2D &operator=(Pose2D &&) = default;
 
   /**
    * Constructs a pose with the specified translation and rotation.
@@ -33,12 +37,12 @@ public:
    * @param rotation The rotational component of the pose.
    */
   constexpr Pose2D(Translation2D translation, Rotation2D rotation)
-      : m_translation{std::move(translation)}, m_rotation{std::move(rotation)} {
-  }
+      : m_translation{std::move(translation)},
+        m_rotation{std::move(rotation)} {}
 
   /**
    * Constructs a pose with x and y translations instead of a separate
-   * Translation2d.
+   * Translation2D.
    *
    * @param x The x component of the translational component of the pose.
    * @param y The y component of the translational component of the pose.
@@ -61,7 +65,7 @@ public:
    *
    * @return The transformed pose.
    */
-  constexpr Pose2D operator+(const Pose2D &other) const {
+  constexpr Pose2D operator+(const Transform2D& other) const {
     return transformBy(other);
   }
 
@@ -71,19 +75,19 @@ public:
    * @param other The initial pose of the transformation.
    * @return The transform that maps the other pose to the current pose.
    */
-  constexpr Pose2D operator-(const Pose2D &other) const;
+  constexpr Transform2D operator-(const Pose2D& other) const;
 
   /**
    * Checks equality between this Pose2D and another object.
    */
-  constexpr bool operator==(const Pose2D &) const = default;
+  constexpr bool operator==(const Pose2D&) const = default;
 
   /**
    * Returns the underlying translation.
    *
    * @return Reference to the translational component of the pose.
    */
-  constexpr const Translation2D &translation() const { return m_translation; }
+  constexpr const Translation2D& translation() const { return m_translation; }
 
   /**
    * Returns the X component of the pose's translation.
@@ -104,7 +108,7 @@ public:
    *
    * @return Reference to the rotational component of the pose.
    */
-  constexpr const Rotation2D &rotation() const { return m_rotation; }
+  constexpr const Rotation2D& rotation() const { return m_rotation; }
 
   /**
    * Multiplies the current pose by a scalar.
@@ -135,7 +139,7 @@ public:
    *
    * @return The rotated pose.
    */
-  constexpr Pose2D rotateBy(const Rotation2D &other) const {
+  constexpr Pose2D rotateBy(const Rotation2D& other) const {
     return {m_translation.rotateBy(other), m_rotation.rotateBy(other)};
   }
 
@@ -147,7 +151,7 @@ public:
    *
    * @return The transformed pose.
    */
-  constexpr Pose2D transformBy(const Pose2D &other) const;
+  constexpr Pose2D transformBy(const Transform2d& other) const;
 
   /**
    * Returns the current pose relative to the given pose.
@@ -161,7 +165,7 @@ public:
    *
    * @return The current pose relative to the new origin pose.
    */
-  constexpr Pose2D relativeTo(const Pose2D &other) const;
+  constexpr Pose2D relativeTo(const Pose2D& other) const;
 
   /**
    * Rotates the current pose around a point in 2D space.
@@ -171,8 +175,8 @@ public:
    *
    * @return The new rotated pose.
    */
-  constexpr Pose2D rotateAround(const Translation2D &point,
-                                const Rotation2D &rot) const {
+  constexpr Pose2D rotateAround(const Translation2D& point,
+                                const Rotation2D& rot) const {
     return {m_translation.rotateAround(point, rot), m_rotation.rotateBy(rot)};
   }
 
@@ -197,7 +201,7 @@ public:
    *
    * @return The new pose of the robot.
    */
-  constexpr Pose2D exp(const Pose2D &twist) const;
+  constexpr Pose2D exp(const Twist2D& twist) const;
 
   /**
    * Returns a Twist2d that maps this pose to the end pose. If c is the output
@@ -207,36 +211,93 @@ public:
    *
    * @return The twist that maps this to end.
    */
-  constexpr Pose2D log(const Pose2D &end) const;
+  constexpr Twist2D log(const Pose2D& end) const;
 
-private:
+  /**
+   * Returns the nearest Pose2D from a collection of poses.
+   *
+   * If two or more poses in the collection have the same distance from this
+   * pose, return the one with the closest rotation component.
+   *
+   * @param poses The collection of poses.
+   * @return The nearest Pose2D from the collection.
+   */
+  constexpr Pose2D nearest(std::span<const Pose2D> poses) const {
+    return *std::min_element(
+        poses.begin(), poses.end(), [this](const Pose2D& a, const Pose2D& b) {
+          auto aDistance = this->translation().distance(a.translation());
+          auto bDistance = this->translation().distance(b.translation());
+
+          // If the distances are equal sort by difference in rotation
+          if (aDistance == bDistance) {
+            return gcem::abs(
+                       (this->rotation() - a.rotation()).radians().value()) <
+                   gcem::abs(
+                       (this->rotation() - b.rotation()).radians().value());
+          }
+          return aDistance < bDistance;
+        });
+  }
+
+  /**
+   * Returns the nearest Pose2D from a collection of poses.
+   *
+   * If two or more poses in the collection have the same distance from this
+   * pose, return the one with the closest rotation component.
+   *
+   * @param poses The collection of poses.
+   * @return The nearest Pose2D from the collection.
+   */
+  constexpr Pose2D Nearest(std::initializer_list<Pose2D> poses) const {
+    return *std::min_element(
+        poses.begin(), poses.end(), [this](const Pose2D& a, const Pose2D& b) {
+          auto aDistance = this->translation().distance(a.translation());
+          auto bDistance = this->translation().distance(b.translation());
+
+          // If the distances are equal sort by difference in rotation
+          if (aDistance == bDistance) {
+            return gcem::abs(
+                       (this->rotation() - a.rotation()).radians().value()) <
+                   gcem::abs(
+                       (this->rotation() - b.rotation()).radians().value());
+          }
+          return aDistance < bDistance;
+        });
+  }
+
+ private:
   Translation2D m_translation;
   Rotation2D m_rotation;
 };
 
-constexpr Pose2D Pose2D::operator-(const Pose2D &other) const {
+}  // namespace libmavnetics
+
+#include "libmavnetics/utils/transform2d.hpp"
+
+namespace libmavnetics {
+
+constexpr Transform2D Pose2D::operator-(const Pose2D& other) const {
   const auto pose = this->relativeTo(other);
-  return Pose2D{pose.translation(), pose.rotation()};
+  return Transform2D{pose.translation(), pose.rotation()};
 }
 
-constexpr Pose2D Pose2D::transformBy(const Pose2D &other) const {
+constexpr Pose2D Pose2D::transformBy(const Transform2D& other) const {
   return {m_translation + (other.translation().rotateBy(m_rotation)),
           other.rotation().rotateBy(m_rotation)};
 }
 
-constexpr Pose2D Pose2D::relativeTo(const Pose2D &other) const {
-  Translation2D translation = (this->translation() - other.translation()).rotateBy(-other.rotation());
-  Rotation2D rotation = this->rotation().relativeTo(other.rotation());
-  return {translation, rotation};
+constexpr Pose2D Pose2D::relativeTo(const Pose2D& other) const {
+  const Transform2D transform{other, *this};
+  return {transform.translation(), transform.rotation()};
 }
 
-constexpr Pose2D Pose2D::exp(const Pose2D &twist) const {
-  const auto dx = twist.x();
-  const auto dy = twist.y();
-  const auto dtheta = twist.rotation().radians().value();
+constexpr Pose2D Pose2D::exp(const Twist2D& twist) const {
+  const auto dx = twist.dx;
+  const auto dy = twist.dy;
+  const auto dtheta = twist.dtheta.value();
 
-  const auto sinTheta = twist.rotation().sin();
-  const auto cosTheta = twist.rotation().cos();
+  const auto sinTheta = gcem::sin(dtheta);
+  const auto cosTheta = gcem::cos(dtheta);
 
   double s, c;
   if (gcem::abs(dtheta) < 1E-9) {
@@ -247,13 +308,13 @@ constexpr Pose2D Pose2D::exp(const Pose2D &twist) const {
     c = (1 - cosTheta) / dtheta;
   }
 
-  const Pose2D transform{Translation2D{dx * s - dy * c, dx * c + dy * s},
+  const Transform2D transform{Translation2D{dx * s - dy * c, dx * c + dy * s},
                               Rotation2D{cosTheta, sinTheta}};
 
   return *this + transform;
 }
 
-constexpr Pose2D Pose2D::log(const Pose2D &end) const {
+constexpr Twist2D Pose2D::log(const Pose2D& end) const {
   const auto transform = end.relativeTo(*this);
   const auto dtheta = transform.rotation().radians().value();
   const auto halfDtheta = dtheta / 2.0;
@@ -277,4 +338,4 @@ constexpr Pose2D Pose2D::log(const Pose2D &end) const {
   return {translationPart.x(), translationPart.y(), units::radian_t{dtheta}};
 }
 
-} // namespace libmavnetics
+}  // namespace frc
