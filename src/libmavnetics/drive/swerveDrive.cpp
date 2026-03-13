@@ -92,8 +92,10 @@ void SwerveDrive::setPose(Translation2D position, Rotation2D theta) {
 
 void SwerveDrive::setPose(Pose2D pose) { m_odometry->setPose(pose); }
 
-void driveToPose(Pose2D currentPose, bool async) {
+void SwerveDrive::driveToPose(Pose2D trajectoryPose, units::meters_per_second_t desiredLinearVelocity, const Rotation2D& desiredHeading, bool async) {
+  auto currentPose = m_odometry->getPose();
   /**
+   * DESCRIPTION FOR ChassisSpeeds.Calculate:
    * Returns the next output of the holonomic drive controller.
    *
    * @param currentPose The current pose, as measured by odometry or pose
@@ -110,38 +112,49 @@ void driveToPose(Pose2D currentPose, bool async) {
   //    const Rotation2d& desiredHeading) {
     // If this is the first run, then we need to reset the theta controller to
     // the current pose's heading.
-    if (m_firstRun) {
-      m_thetaController.Reset(currentPose.Rotation().Radians());
-      m_firstRun = false;
-    }
+    //if (m_firstRun) {
+    //  //m_thetaController.Reset(currentPose.Rotation().Radians());
+    //  m_firstRun = false;
+    //}
 
     // Calculate feedforward velocities (field-relative)
-    auto xFF = desiredLinearVelocity * trajectoryPose.Rotation().Cos();
-    auto yFF = desiredLinearVelocity * trajectoryPose.Rotation().Sin();
-    auto thetaFF = units::radians_per_second_t{m_thetaController.Calculate(
-        currentPose.Rotation().Radians(), desiredHeading.Radians())};
+    auto xFF = desiredLinearVelocity * trajectoryPose.rotation().cos();
+    auto yFF = desiredLinearVelocity * trajectoryPose.rotation().sin();
+    auto thetaFF = m_thetaController.Calculate(
+        currentPose.rotation().radians().value(), desiredHeading.radians().value());
 
-    m_poseError = trajectoryPose.RelativeTo(currentPose);
-    m_rotationError = desiredHeading - currentPose.Rotation();
+    m_poseError = trajectoryPose.relativeTo(currentPose);
+    m_rotationError = desiredHeading - currentPose.rotation();
 
     if (!m_enabled) {
-      return ChassisSpeeds::FromFieldRelativeSpeeds(xFF, yFF, thetaFF,
-                                                    currentPose.Rotation());
+      return ChassisSpeeds::fromFieldRelativeSpeeds(xFF, yFF, thetaFF,
+                                                    currentPose.rotation());
     }
 
     // Calculate feedback velocities (based on position error).
     auto xFeedback = units::meters_per_second_t{m_xController.Calculate(
-        currentPose.X().value(), trajectoryPose.X().value())};
+        currentPose.x().value(), trajectoryPose.x().value())};
     auto yFeedback = units::meters_per_second_t{m_yController.Calculate(
-        currentPose.Y().value(), trajectoryPose.Y().value())};
+        currentPose.y().value(), trajectoryPose.y().value())};
 
-    // Return next output.
-    // return ChassisSpeeds::FromFieldRelativeSpeeds(
-    //    xFF + xFeedback, yFF + yFeedback, thetaFF, currentPose.Rotation());
+    // Calculate states.
+    auto states = m_kinematics.toWheelSpeeds(ChassisSpeeds::FromFieldRelativeSpeeds(
+       xFF + xFeedback, yFF + yFeedback, thetaFF, currentPose.Rotation()));
+
+  m_kinematics.desaturateWheelSpeeds(
+      &states, std::max({m_frontLeft.maxSpeed(), m_frontRight.maxSpeed(),
+                         m_backLeft.maxSpeed(), m_backRight.maxSpeed()}));
+
+  auto [fl, fr, bl, br] = states;
+
+  m_frontLeft.setDesiredState(fl);
+  m_frontRight.setDesiredState(fr);
+  m_backLeft.setDesiredState(bl);
+  m_backRight.setDesiredState(br);
 }
-bool isFinishedMovement();
-void waitUntilDone();
-void waitUtilDistance(units::meter_t dist);
+//bool isFinishedMovement();
+//void waitUntilDone();
+//void waitUtilDistance(units::meter_t dist);
 //void driveTrajectory(Trajectory, bool async, ...);
 
 } // namespace libmavnetics

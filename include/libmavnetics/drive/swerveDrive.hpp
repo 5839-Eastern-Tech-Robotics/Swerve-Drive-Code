@@ -7,12 +7,13 @@
 #include "Eigen/QR"
 #include "libmavnetics/drive/odometry.hpp"
 #include "libmavnetics/drive/swerveModule.hpp"
-#include "libmavnetics/utils/trajectory.hpp"
+//#include "libmavnetics/utils/trajectory.hpp"
 #include "libmavnetics/utils/chassisSpeeds.hpp"
 #include "libmavnetics/utils/pose2d.hpp"
 #include "libmavnetics/utils/rotation2d.hpp"
 #include "libmavnetics/utils/translation2d.hpp"
 #include "libmavnetics/utils/twist2d.hpp"
+#include "libmavnetics/utils/pid.hpp"
 #include "units/angle.h"
 #include "units/angular_velocity.h"
 #include "units/length.h"
@@ -280,7 +281,7 @@ public:
   void setPose(Translation2D position, Rotation2D theta);
   void setPose(Pose2D pose);
 
-  void driveToPose(Pose2D pose, bool async);
+  void driveToPose(Pose2D trajectoryPose, units::meters_per_second_t desiredLinearVelocity, const Rotation2D& desiredHeading, bool async);
   bool isFinishedMovement();
   void waitUntilDone();
   void waitUtilDistance(units::meter_t dist);
@@ -297,6 +298,17 @@ private:
 
   SwerveDriveKinematics<4> m_kinematics;
   Odometry *m_odometry;
+  
+  // from allwpilib/wpimath/src/main/native/include/frc/controller/HolonomicDriveController.h
+  
+  Pose2D m_poseError;
+  Rotation2D m_rotationError;
+  Pose2D m_poseTolerance;
+  bool m_enabled = true;
+
+  PID m_xController;
+  PID m_yController;
+  PID m_thetaController;
 
   bool m_firstRun = true;
 };

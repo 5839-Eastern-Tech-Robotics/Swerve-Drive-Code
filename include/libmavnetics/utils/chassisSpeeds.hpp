@@ -58,7 +58,7 @@ struct ChassisSpeeds {
     auto twist = Pose2D{}.log(desiredDeltaPose);
 
     // Turn the chassis translation/rotation deltas into average velocities
-    return {twist.x() / dt, twist.y() / dt, twist.rotation().degrees() / dt};
+    return {twist.dx / dt, twist.dy / dt, twist.dtheta / dt};
   }
 
   /**
