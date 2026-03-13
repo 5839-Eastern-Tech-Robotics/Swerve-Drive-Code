@@ -7,6 +7,7 @@
 #include "Eigen/QR"
 #include "libmavnetics/drive/odometry.hpp"
 #include "libmavnetics/drive/swerveModule.hpp"
+#include "libmavnetics/utils/trajectory.hpp"
 #include "libmavnetics/utils/chassisSpeeds.hpp"
 #include "libmavnetics/utils/pose2d.hpp"
 #include "libmavnetics/utils/rotation2d.hpp"
@@ -279,6 +280,12 @@ public:
   void setPose(Translation2D position, Rotation2D theta);
   void setPose(Pose2D pose);
 
+  void driveToPose(Pose2D pose, bool async);
+  bool isFinishedMovement();
+  void waitUntilDone();
+  void waitUtilDistance(units::meter_t dist);
+  //void driveTrajectory(Trajectory, bool async, ...);
+
 private:
   SwerveModule m_frontLeft;
   SwerveModule m_backLeft;
@@ -290,6 +297,8 @@ private:
 
   SwerveDriveKinematics<4> m_kinematics;
   Odometry *m_odometry;
+
+  bool m_firstRun = true;
 };
 
 } // namespace libmavnetics

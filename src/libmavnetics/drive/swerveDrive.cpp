@@ -91,4 +91,57 @@ void SwerveDrive::setPose(Translation2D position, Rotation2D theta) {
 }
 
 void SwerveDrive::setPose(Pose2D pose) { m_odometry->setPose(pose); }
+
+void driveToPose(Pose2D currentPose, bool async) {
+  /**
+   * Returns the next output of the holonomic drive controller.
+   *
+   * @param currentPose The current pose, as measured by odometry or pose
+   * estimator.
+   * @param trajectoryPose The desired trajectory pose, as sampled for the
+   * current timestep.
+   * @param desiredLinearVelocity The desired linear velocity.
+   * @param desiredHeading The desired heading.
+   * @return The next output of the holonomic drive controller.
+   */
+  //constexpr ChassisSpeeds Calculate(
+  //    const Pose2d& currentPose, const Pose2d& trajectoryPose,
+  //    units::meters_per_second_t desiredLinearVelocity,
+  //    const Rotation2d& desiredHeading) {
+    // If this is the first run, then we need to reset the theta controller to
+    // the current pose's heading.
+    if (m_firstRun) {
+      m_thetaController.Reset(currentPose.Rotation().Radians());
+      m_firstRun = false;
+    }
+
+    // Calculate feedforward velocities (field-relative)
+    auto xFF = desiredLinearVelocity * trajectoryPose.Rotation().Cos();
+    auto yFF = desiredLinearVelocity * trajectoryPose.Rotation().Sin();
+    auto thetaFF = units::radians_per_second_t{m_thetaController.Calculate(
+        currentPose.Rotation().Radians(), desiredHeading.Radians())};
+
+    m_poseError = trajectoryPose.RelativeTo(currentPose);
+    m_rotationError = desiredHeading - currentPose.Rotation();
+
+    if (!m_enabled) {
+      return ChassisSpeeds::FromFieldRelativeSpeeds(xFF, yFF, thetaFF,
+                                                    currentPose.Rotation());
+    }
+
+    // Calculate feedback velocities (based on position error).
+    auto xFeedback = units::meters_per_second_t{m_xController.Calculate(
+        currentPose.X().value(), trajectoryPose.X().value())};
+    auto yFeedback = units::meters_per_second_t{m_yController.Calculate(
+        currentPose.Y().value(), trajectoryPose.Y().value())};
+
+    // Return next output.
+    // return ChassisSpeeds::FromFieldRelativeSpeeds(
+    //    xFF + xFeedback, yFF + yFeedback, thetaFF, currentPose.Rotation());
+}
+bool isFinishedMovement();
+void waitUntilDone();
+void waitUtilDistance(units::meter_t dist);
+//void driveTrajectory(Trajectory, bool async, ...);
+
 } // namespace libmavnetics

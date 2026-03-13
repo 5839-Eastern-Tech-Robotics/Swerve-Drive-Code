@@ -151,7 +151,7 @@ class Pose2D {
    *
    * @return The transformed pose.
    */
-  constexpr Pose2D transformBy(const Transform2d& other) const;
+  constexpr Pose2D transformBy(const Transform2D& other) const;
 
   /**
    * Returns the current pose relative to the given pose.
