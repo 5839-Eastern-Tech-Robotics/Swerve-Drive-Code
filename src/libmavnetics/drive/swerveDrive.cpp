@@ -11,14 +11,21 @@ namespace libmavnetics {
 
 SwerveDrive::SwerveDrive(std::array<SwerveModule, 4> modules,
                          units::meter_t track_width, units::meter_t wheel_base,
-                         Odometry *odometry)
+                         Odometry *odometry,
+                         
+                         PID *xPID, PID *yPID, PID *thetaPID, PID *rotPID)
     : m_frontLeft(modules[0]), m_backLeft(modules[2]), m_frontRight(modules[1]),
       m_backRight(modules[3]), m_odometry(odometry), track_width(track_width),
       wheel_base(wheel_base),
       m_kinematics(Translation2D{wheel_base / 2.0, track_width / 2.0},
                    Translation2D{wheel_base / 2.0, -track_width / 2.0},
                    Translation2D{-wheel_base / 2.0, track_width / 2.0},
-                   Translation2D{-wheel_base / 2.0, -track_width / 2.0}) {}
+                   Translation2D{-wheel_base / 2.0, -track_width / 2.0}) {
+      m_xController = xPID;
+      m_yController = yPID;
+      m_thetaController = thetaPID;
+      m_rotController = rotPID;
+}
 
 void SwerveDrive::calibrate() { m_odometry->calibrate(); }
 
@@ -31,6 +38,10 @@ void SwerveDrive::drive(units::meters_per_second_t xSpeed,
                         units::meters_per_second_t ySpeed,
                         units::radians_per_second_t rotSpeed,
                         bool fieldRelative, units::second_t period) {
+  ChassisSpeeds measuredSpeed = (fieldRelative ? m_odometry->getGlobalSpeed() : m_odometry->getLocalSpeed());
+  
+  rotSpeed = units::radians_per_second_t{ m_rotController->calculate(measuredSpeed.omega.value(), rotSpeed.value()) };
+
   auto states = m_kinematics.toWheelSpeeds(ChassisSpeeds::discretize(
       fieldRelative
           ? ChassisSpeeds::fromFieldRelativeSpeeds(
@@ -120,27 +131,29 @@ void SwerveDrive::driveToPose(Pose2D trajectoryPose, units::meters_per_second_t 
     // Calculate feedforward velocities (field-relative)
     auto xFF = desiredLinearVelocity * trajectoryPose.rotation().cos();
     auto yFF = desiredLinearVelocity * trajectoryPose.rotation().sin();
-    auto thetaFF = m_thetaController.Calculate(
-        currentPose.rotation().radians().value(), desiredHeading.radians().value());
+    units::radians_per_second_t theta { m_thetaController->calculate(
+        currentPose.rotation().radians().value(), desiredHeading.radians().value()) };
 
     m_poseError = trajectoryPose.relativeTo(currentPose);
     m_rotationError = desiredHeading - currentPose.rotation();
 
+    std::array<SwerveModuleState, 4> states;
     if (!m_enabled) {
-      return ChassisSpeeds::fromFieldRelativeSpeeds(xFF, yFF, thetaFF,
-                                                    currentPose.rotation());
-    }
+      states = m_kinematics.toWheelSpeeds(
+              ChassisSpeeds::fromFieldRelativeSpeeds(xFF, yFF, theta,
+                                                    currentPose.rotation()));
+    } else {
 
     // Calculate feedback velocities (based on position error).
-    auto xFeedback = units::meters_per_second_t{m_xController.Calculate(
+    auto xFeedback = units::meters_per_second_t{m_xController->calculate(
         currentPose.x().value(), trajectoryPose.x().value())};
-    auto yFeedback = units::meters_per_second_t{m_yController.Calculate(
+    auto yFeedback = units::meters_per_second_t{m_yController->calculate(
         currentPose.y().value(), trajectoryPose.y().value())};
 
     // Calculate states.
-    auto states = m_kinematics.toWheelSpeeds(ChassisSpeeds::FromFieldRelativeSpeeds(
-       xFF + xFeedback, yFF + yFeedback, thetaFF, currentPose.Rotation()));
-
+    states = m_kinematics.toWheelSpeeds(ChassisSpeeds::fromFieldRelativeSpeeds(
+       xFF + xFeedback, yFF + yFeedback, theta, currentPose.rotation()));
+    }
   m_kinematics.desaturateWheelSpeeds(
       &states, std::max({m_frontLeft.maxSpeed(), m_frontRight.maxSpeed(),
                          m_backLeft.maxSpeed(), m_backRight.maxSpeed()}));

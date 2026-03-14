@@ -69,7 +69,8 @@ public:
 
 private:
   pros::Motor driveMotor, turnMotor;
-  PID drivePID, turnPID;
+  PID drivePID;
+  PID turnPID;
   const double driveGearRatio, turnGearRatio;
   const units::meter_t driveWheelDiameter;
 };

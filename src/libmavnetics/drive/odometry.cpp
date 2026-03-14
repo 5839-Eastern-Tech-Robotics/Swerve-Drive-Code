@@ -5,6 +5,7 @@
 
 #include "libmavnetics/utils/pose2d.hpp"
 #include "libmavnetics/utils/rotation2d.hpp"
+#include "libmavnetics/utils/util.hpp"
 #include "pros/adi.hpp"
 #include "pros/imu.hpp"
 #include "pros/rotation.hpp"
@@ -124,6 +125,10 @@ void Odometry::setPose(Pose2D pose) { this->pose = pose; }
 
 Pose2D Odometry::getPose() { return this->pose; }
 
+ChassisSpeeds Odometry::getLocalSpeed() { return this->localSpeed; }
+
+ChassisSpeeds Odometry::getGlobalSpeed() { return this->globalSpeed; }
+
 void Odometry::update() {
   units::meter_t verticalDist = vertical->getDistanceTraveled();
   units::meter_t horizontalDist = horizontal->getDistanceTraveled();
@@ -168,7 +173,15 @@ void Odometry::update() {
     deltaHeading
   });
 
-  // calculate speed and local speed if I need to
+  // calculate local speed
+  localSpeed.vx = ema(deltaHorizontal / deltaTime, localSpeed.vx, 0.95); 
+  localSpeed.vy = ema(deltaVertical / deltaTime, localSpeed.vy, 0.95); 
+  localSpeed.omega = ema(deltaHeading / deltaTime, localSpeed.omega, 0.95); 
+  
+  // calculate global speed
+  globalSpeed.vx = ema((pose.x() - prevPose.x()) / deltaTime, globalSpeed.vx, 0.95); 
+  globalSpeed.vy = ema((pose.y() - prevPose.y()) / deltaTime, globalSpeed.vy, 0.95); 
+  globalSpeed.omega = ema(deltaHeading / deltaTime, globalSpeed.omega, 0.95); 
 }
 
 } // namespace libmavnetics

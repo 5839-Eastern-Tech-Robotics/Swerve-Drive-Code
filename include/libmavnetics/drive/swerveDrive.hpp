@@ -33,6 +33,7 @@ template <int Rows, int Cols,
           int MaxRows = Rows, int MaxCols = Cols>
 using Matrixd = Eigen::Matrix<double, Rows, Cols, Options, MaxRows, MaxCols>;
 
+
 template <size_t numModules> class SwerveDriveKinematics {
 public:
   using WheelSpeeds = std::array<SwerveModuleState, numModules>;
@@ -259,7 +260,8 @@ public:
    * @param modules the swerve drive modules in the order [fl, fr, bl, br]
    */
   SwerveDrive(std::array<SwerveModule, 4> modules, units::meter_t track_width,
-              units::meter_t wheel_base, Odometry *odometry);
+              units::meter_t wheel_base, Odometry *odometry,
+              PID *xPID, PID *yPID, PID *thetaPID, PID *rotPID);
 
   void calibrate();
   void update();
@@ -306,9 +308,10 @@ private:
   Pose2D m_poseTolerance;
   bool m_enabled = true;
 
-  PID m_xController;
-  PID m_yController;
-  PID m_thetaController;
+  PID *m_xController;
+  PID *m_yController;
+  PID *m_thetaController;
+  PID *m_rotController;
 
   bool m_firstRun = true;
 };
