@@ -4,6 +4,7 @@
 #include "libmavnetics/utils/pose2d.hpp"
 #include "libmavnetics/utils/rotation2d.hpp"
 #include "libmavnetics/utils/translation2d.hpp"
+#include "libmavnetics/utils/chassisSpeeds.hpp"
 #include "pros/adi.hpp"
 #include "pros/imu.hpp"
 #include "pros/motor_group.hpp"
@@ -57,6 +58,8 @@ public:
   void setPose(Pose2D pose);
 
   Pose2D getPose();
+  ChassisSpeeds getLocalSpeed();
+  ChassisSpeeds getGlobalSpeed();
 private:
   pros::Task *trackingTask = nullptr;
 
@@ -74,6 +77,7 @@ private:
   pros::Imu *imu;
 
   void initUpdateLoop();
+
 };
 
 } // namespace libmavnetics

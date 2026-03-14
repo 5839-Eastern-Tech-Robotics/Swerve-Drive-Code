@@ -13,7 +13,6 @@
 #include "pros/motors.hpp"
 #include "units/length.h"
 
-extern pros::IMU imu;
 extern pros::MotorGroup intake;
 extern pros::adi::Pneumatics intakeBlocker;
 extern pros::adi::Pneumatics ramp;
@@ -45,6 +44,18 @@ extern libmavnetics::SwerveModule FLModule;
 extern pros::Motor driveFR;
 extern pros::Motor rotateFR;
 extern libmavnetics::SwerveModule FRModule;
+
+extern pros::IMU imu;
+extern pros::Rotation verticalSensor;
+extern pros::Rotation horizontalSensor;
+extern libmavnetics::OdometryModule verticalModule;
+extern libmavnetics::OdometryModule horizontalModule;
+extern libmavnetics::Odometry odometry;
+
+extern libmavnetics::PID linearXPID;
+extern libmavnetics::PID linearYPID;
+extern libmavnetics::PID rotationalPID;
+extern libmavnetics::PID straighteningPID;
 
 extern libmavnetics::SwerveDrive drive;
 

@@ -1,5 +1,6 @@
 #include "globals.hpp"
 
+#include "gcem.hpp"
 #include "gcem_incl/sin.hpp"
 #include "libmavnetics/drive/odometry.hpp"
 #include "libmavnetics/drive/swerveDrive.hpp"
@@ -16,7 +17,6 @@
 #include "pros/rotation.hpp"
 #include "pros/rtos.hpp"
 #include "units/length.h"
-#include "gcem.hpp"
 
 pros::IMU imu{14};
 pros::MotorGroup intake{-6, -7};
@@ -65,15 +65,26 @@ libmavnetics::OdometryModule verticalModule{&verticalSensor, 2_in, 6_in};
 pros::Rotation horizontalSensor{14};
 libmavnetics::OdometryModule horizontalModule{&horizontalSensor, 2_in, 6_in};
 
+libmavnetics::PID linearXPID{1, 0, 0};
+libmavnetics::PID linearYPID{1, 0, 0};
+libmavnetics::PID rotationalPID{1, 0, 0};
+libmavnetics::PID straighteningPID{1, 0, 0};
+
 libmavnetics::Odometry odometry{&verticalModule, &horizontalModule, &imu};
 libmavnetics::SwerveDrive drive{{FLModule, FRModule, BLModule, BRModule},
                                 track_width,
                                 wheel_base,
-                                &odometry};
+                                &odometry,
+                                &linearXPID,
+                                &linearYPID,
+                                &rotationalPID,
+                                &straighteningPID};
 
 pros::Controller controller{pros::E_CONTROLLER_MASTER};
 
 libmavnetics::gui::PIDTuner tuner({{"Module Velocity", &driveMotorPID, [] {}},
-    {"Module Angle", &rotateMotorPID, [] {}, [] {
-        return rotateMotorPID.getP() * gcem::sin((double) pros::millis());
-    }}});
+                                   {"Module Angle", &rotateMotorPID, [] {},
+                                    [] {
+                                      return rotateMotorPID.getP() *
+                                             gcem::sin((double)pros::millis());
+                                    }}});
