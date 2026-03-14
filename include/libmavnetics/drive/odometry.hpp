@@ -1,5 +1,6 @@
 #pragma once
 
+#include "libmavnetics/utils/chassisSpeeds.hpp"
 #include "libmavnetics/utils/pose2d.hpp"
 #include "libmavnetics/utils/rotation2d.hpp"
 #include "libmavnetics/utils/translation2d.hpp"
@@ -55,12 +56,14 @@ public:
   void setPose(Translation2D position, Rotation2D theta);
   void setPose(Pose2D pose);
 
-
   Pose2D getPose();
 private:
   pros::Task *trackingTask = nullptr;
 
   Pose2D pose;
+  ChassisSpeeds localSpeed;
+  ChassisSpeeds globalSpeed;
+
   units::meter_t prevVertical = 0_m;
   units::meter_t prevHorizontal = 0_m;
   units::degree_t prevIMU = 0_deg;

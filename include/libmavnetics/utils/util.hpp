@@ -32,7 +32,7 @@ enum class AngularDirection {
  * sgn(0); // returns 1 (by convention)
  * @endcode
  */
-template <typename T> constexpr T sgn(T &value) { return value < 0 ? -1 : 1; }
+template <typename T> constexpr T sgn(T value) { return value < 0 ? -1 : 1; }
 
 /**
  * @brief Linearly interpolates a value from start to end at time t
@@ -43,7 +43,7 @@ template <typename T> constexpr T sgn(T &value) { return value < 0 ? -1 : 1; }
  * from
  * @return the interpolated value
  */
-template <typename T> constexpr T lerp(T &start, T &end, double t) {
+template <typename T> constexpr T lerp(T start, T end, double t) {
   return start + (end - start) * t;
 }
 
