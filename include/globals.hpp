@@ -3,6 +3,7 @@
 #include "libmavnetics/drive/swerveDrive.hpp"
 #include "libmavnetics/drive/swerveModule.hpp"
 #include "libmavnetics/drive/swerveModule.hpp"
+#include "libmavnetics/ui/views/pidTuner.hpp"
 #include "libmavnetics/utils/pid.hpp"
 #include "pros/abstract_motor.hpp"
 #include "pros/adi.hpp"
@@ -14,7 +15,7 @@
 
 extern pros::IMU imu;
 extern pros::MotorGroup intake;
-extern pros::adi::Pneumatics descorer;
+extern pros::adi::Pneumatics intakeBlocker;
 extern pros::adi::Pneumatics ramp;
 
 extern const pros::MotorCartridge driveCartridge;
@@ -48,3 +49,5 @@ extern libmavnetics::SwerveModule FRModule;
 extern libmavnetics::SwerveDrive drive;
 
 extern pros::Controller controller;
+
+extern libmavnetics::gui::PIDTuner tuner;

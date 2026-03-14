@@ -1,6 +1,9 @@
 #include "libmavnetics/drive/swerveModule.hpp"
 
+#include <algorithm>
+#include <iostream>
 #include <numbers>
+#include <ostream>
 
 #include "units/angle.h"
 #include "units/length.h"
