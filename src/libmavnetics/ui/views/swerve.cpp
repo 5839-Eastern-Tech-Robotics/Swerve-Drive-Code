@@ -1,4 +1,5 @@
 #include "libmavnetics/ui/views/swerve.hpp"
+#include "globals.hpp"
 #include "liblvgl/core/lv_obj_pos.h"
 #include "liblvgl/core/lv_obj_style.h"
 #include "liblvgl/core/lv_obj_style_gen.h"
@@ -17,10 +18,12 @@
 namespace libmavnetics {
 namespace gui {
 
-std::array<lv_point_precise_t, 5> SwerveVisualizer::transformArrow(int length, Rotation2D angle) {
+std::array<lv_point_precise_t, 5>
+SwerveVisualizer::transformArrow(int length, Rotation2D angle) {
   double cos_theta = (-angle).cos();
   double sin_theta = (-angle).sin();
-  std::array<lv_point_precise_t, 5> points{{ {0, 0}, {0, length}, {-5, length - 5}, {0, length}, {5, length - 5} }};
+  std::array<lv_point_precise_t, 5> points{
+      {{0, 0}, {0, length}, {-5, length - 5}, {0, length}, {5, length - 5}}};
   for (int i = 0; i < 5; i++) {
     int x = points[i].x;
     int y = points[i].y;
@@ -32,58 +35,67 @@ std::array<lv_point_precise_t, 5> SwerveVisualizer::transformArrow(int length, R
   return points;
 }
 
-SwerveVisualizer::SwerveVisualizer(std::string name) {
+SwerveVisualizer::SwerveVisualizer(
+    std::string name, units::meters_per_second_t maxModuleSpeed,
+    units::radians_per_second_t maxRotationalVelocity)
+    : maxModuleVelocity(maxModuleSpeed),
+      maxRotationalVelocity(maxRotationalVelocity) {
+
   this->name = name;
   this->view = rd_view_create(name.c_str());
 
   lv_obj_set_style_bg_color(view->obj, color_bg, 0);
   lv_obj_remove_flag(view->obj, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_style_t style_line;
-  lv_style_init(&style_line);
-  lv_style_set_line_width(&style_line, 4);
-  lv_style_set_line_rounded(&style_line, true);
-
   lv_obj_t *chassis = lv_line_create(view->obj);
-  lv_obj_add_style(chassis, &style_line, 0);
   lv_obj_set_style_line_width(chassis, 4, 0);
+  lv_obj_set_style_line_rounded(chassis, true, 0);
   lv_obj_set_style_line_color(chassis, LV_COLOR_MAKE(50, 205, 50), 0);
-  lv_point_precise_t points[] = {
-      {0, 0}, {0, 150}, {150, 150}, {150, 0}, {0, 0}};
-  lv_line_set_points(chassis, points, 5);
+  lv_line_set_points(chassis, chassis_frame.data(), 5);
   lv_obj_center(chassis);
 
-  std::array<lv_point_precise_t, 5> arrow_points = transformArrow(40, 30_deg);
+  return;
 
-  lv_obj_t* arrow_1 = lv_line_create(view->obj);
-  lv_obj_add_style(arrow_1, &style_line, 0);
-  lv_obj_align(arrow_1, LV_ALIGN_CENTER, -75, -75);
-  lv_obj_set_style_line_color(arrow_1, LV_COLOR_MAKE(65, 105, 225), 0);
-  lv_line_set_points(arrow_1, arrow_points.begin(), 5);
+  arrow_points_fl = transformArrow(40, 135_deg);
+  arrow_points_fr = transformArrow(40, 45_deg);
+  arrow_points_bl = transformArrow(40, 225_deg);
+  arrow_points_br = transformArrow(40, 315_deg);
+  arrow_points_chassis = transformArrow(40, 315_deg);
 
-  lv_obj_t* arrow_2 = lv_line_create(view->obj);
-  lv_obj_add_style(arrow_2, &style_line, 0);
-  lv_obj_align(arrow_2, LV_ALIGN_CENTER, 75, -75);
-  lv_obj_set_style_line_color(arrow_2, LV_COLOR_MAKE(65, 105, 225), 0);
-  lv_line_set_points(arrow_2, arrow_points.begin(), 5);
+  arrow_fl = lv_line_create(view->obj);
+  lv_obj_set_style_line_width(arrow_fl, 4, 0);
+  lv_obj_set_style_line_rounded(arrow_fl, true, 0);
+  lv_obj_set_style_line_color(arrow_fl, LV_COLOR_MAKE(65, 105, 225), 0);
+  lv_obj_align(arrow_fl, LV_ALIGN_CENTER, -75, -75);
+  lv_line_set_points(arrow_fl, arrow_points_fl.begin(), 5);
 
-  lv_obj_t* arrow_3 = lv_line_create(view->obj);
-  lv_obj_add_style(arrow_3, &style_line, 0);
-  lv_obj_align(arrow_3, LV_ALIGN_CENTER, 75, 75);
-  lv_obj_set_style_line_color(arrow_3, LV_COLOR_MAKE(65, 105, 225), 0);
-  lv_line_set_points(arrow_3, arrow_points.begin(), 5);
+  arrow_fr = lv_line_create(view->obj);
+  lv_obj_set_style_line_width(arrow_fr, 4, 0);
+  lv_obj_set_style_line_rounded(arrow_fr, true, 0);
+  lv_obj_set_style_line_color(arrow_fr, LV_COLOR_MAKE(65, 105, 225), 0);
+  lv_obj_align(arrow_fr, LV_ALIGN_CENTER, 75, -75);
+  lv_line_set_points(arrow_fr, arrow_points_fr.begin(), 5);
 
-  lv_obj_t* arrow_4 = lv_line_create(view->obj);
-  lv_obj_add_style(arrow_4, &style_line, 0);
-  lv_obj_align(arrow_4, LV_ALIGN_CENTER, -75, 75);
-  lv_obj_set_style_line_color(arrow_4, LV_COLOR_MAKE(65, 105, 225), 0);
-  lv_line_set_points(arrow_4, arrow_points.begin(), 5);
+  arrow_bl = lv_line_create(view->obj);
+  lv_obj_set_style_line_width(arrow_bl, 4, 0);
+  lv_obj_set_style_line_rounded(arrow_bl, true, 0);
+  lv_obj_set_style_line_color(arrow_bl, LV_COLOR_MAKE(65, 105, 225), 0);
+  lv_obj_align(arrow_bl, LV_ALIGN_CENTER, 75, 75);
+  lv_line_set_points(arrow_bl, arrow_points_bl.begin(), 5);
 
-  lv_obj_t* arrow_5 = lv_line_create(view->obj);
-  lv_obj_add_style(arrow_5, &style_line, 0);
-  lv_obj_align(arrow_5, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_set_style_line_color(arrow_5, LV_COLOR_MAKE(65, 105, 225), 0);
-  lv_line_set_points(arrow_5, arrow_points.begin(), 5);
+  arrow_br = lv_line_create(view->obj);
+  lv_obj_set_style_line_width(arrow_br, 4, 0);
+  lv_obj_set_style_line_rounded(arrow_br, true, 0);
+  lv_obj_set_style_line_color(arrow_br, LV_COLOR_MAKE(65, 105, 225), 0);
+  lv_obj_align(arrow_br, LV_ALIGN_CENTER, -75, 75);
+  lv_line_set_points(arrow_br, arrow_points_br.begin(), 5);
+
+  arrow_chassis = lv_line_create(view->obj);
+  lv_obj_set_style_line_width(arrow_chassis, 4, 0);
+  lv_obj_set_style_line_rounded(arrow_chassis, true, 0);
+  lv_obj_align(arrow_chassis, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_style_line_color(arrow_chassis, LV_COLOR_MAKE(65, 105, 225), 0);
+  lv_line_set_points(arrow_chassis, arrow_points_chassis.begin(), 5);
 }
 
 void SwerveVisualizer::focus() { rd_view_focus(this->view); }

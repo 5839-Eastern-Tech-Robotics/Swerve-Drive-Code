@@ -64,14 +64,22 @@ void SwerveModule::setDesiredState(SwerveModuleState &state) {
   state.optimize(currentState.angle);
   state.scaleCosine(currentState.angle);
 
-  const auto driveOutput =
-      drivePID.calculate(currentState.speed.value(), state.speed.value());
+  // const auto driveOutput =
+  //     drivePID.calculate(currentState.speed.value(), state.speed.value());
 
   const auto turnOutput = turnPID.calculate(
       currentState.angle.degrees().value(), state.angle.degrees().value());
 
-  // TODO: check if i need to clamp these properly
-  driveMotor.move(driveOutput);
+  // std::cout << "[MODULE_DRIVE] " << currentState.speed.value() << " "
+  //           << state.speed.value() << " " << driveOutput << std::endl;
+
+  // if (this->print)
+  //   std::cout << "[MODULE_TURN] " << currentState.angle.degrees().value() << " "
+  //             << state.angle.degrees().value() << " " << turnPID.getError()
+  //             << " " << turnOutput << std::endl;
+
+  // do I really need a PID here?
+  driveMotor.move(100 * state.speed / maxSpeed());
   turnMotor.move(turnOutput);
 }
 

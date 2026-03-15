@@ -1,6 +1,7 @@
 #include "libmavnetics/drive/odometry.hpp"
 
 #include <cmath>
+#include <iostream>
 #include <numbers>
 
 #include "libmavnetics/utils/pose2d.hpp"
@@ -135,6 +136,7 @@ void Odometry::update() {
   units::degree_t imuAngle = units::degree_t{imu->get_rotation()};
   units::second_t time = pros::millis() * 1_ms;
 
+
   units::meter_t verticalOffset = vertical->getOffset();
   units::meter_t horizontalOffset = horizontal->getOffset();
 
@@ -154,6 +156,8 @@ void Odometry::update() {
   units::radian_t averageHeading =
       pose.rotation().radians() + deltaHeading / 2.0;
 
+  // std::cout << imuAngle.value() << ", " << deltaHeading.convert<units::degrees>().value() << std::endl;
+
   units::meter_t localX = 0_m;
   units::meter_t localY = 0_m;
   if (deltaHeading == 0_deg) {
@@ -166,22 +170,28 @@ void Odometry::update() {
              (deltaVertical / deltaHeading.value() + verticalOffset);
   }
 
+  // std::cout << "updating odometry, x: " << localX.value()
+  //           << ", y: " << localY.value() << ", theta: " << deltaHeading.value()
+  //           << std::endl;
+
   Pose2D prevPose = pose;
-  pose.transformBy({
-    localY * units::math::sin(averageHeading) - localX * units::math::cos(averageHeading),
-    localY * units::math::cos(averageHeading) + localX * units::math::sin(averageHeading),
-    deltaHeading
-  });
+  pose = pose.transformBy({localY * units::math::sin(averageHeading) -
+                        localX * units::math::cos(averageHeading),
+                    localY * units::math::cos(averageHeading) +
+                        localX * units::math::sin(averageHeading),
+                    deltaHeading});
 
   // calculate local speed
-  localSpeed.vx = ema(deltaHorizontal / deltaTime, localSpeed.vx, 0.95); 
-  localSpeed.vy = ema(deltaVertical / deltaTime, localSpeed.vy, 0.95); 
-  localSpeed.omega = ema(deltaHeading / deltaTime, localSpeed.omega, 0.95); 
-  
+  localSpeed.vx = ema(deltaHorizontal / deltaTime, localSpeed.vx, 0.95);
+  localSpeed.vy = ema(deltaVertical / deltaTime, localSpeed.vy, 0.95);
+  localSpeed.omega = ema(deltaHeading / deltaTime, localSpeed.omega, 0.95);
+
   // calculate global speed
-  globalSpeed.vx = ema((pose.x() - prevPose.x()) / deltaTime, globalSpeed.vx, 0.95); 
-  globalSpeed.vy = ema((pose.y() - prevPose.y()) / deltaTime, globalSpeed.vy, 0.95); 
-  globalSpeed.omega = ema(deltaHeading / deltaTime, globalSpeed.omega, 0.95); 
+  globalSpeed.vx =
+      ema((pose.x() - prevPose.x()) / deltaTime, globalSpeed.vx, 0.95);
+  globalSpeed.vy =
+      ema((pose.y() - prevPose.y()) / deltaTime, globalSpeed.vy, 0.95);
+  globalSpeed.omega = ema(deltaHeading / deltaTime, globalSpeed.omega, 0.95);
 }
 
 } // namespace libmavnetics

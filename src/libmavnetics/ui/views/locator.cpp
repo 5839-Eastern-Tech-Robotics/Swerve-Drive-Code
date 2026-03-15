@@ -24,6 +24,18 @@
 namespace libmavnetics {
 namespace gui {
 
+void OdomLocator::mode_cb(lv_event_t *event) {
+  OdomLocator *locator =
+      (OdomLocator *)lv_obj_get_user_data(lv_event_get_target_obj(event));
+  locator->mode = !(locator->mode);
+  if (locator->mode) {
+    lv_label_set_text(locator->mode_label, "Mode:\nAngle");
+  }
+  if (!(locator->mode)) {
+    lv_label_set_text(locator->mode_label, "Mode:\nPosition");
+  }
+}
+
 void OdomLocator::update_robot(lv_timer_t *timer) {
   OdomLocator *locator = (OdomLocator *)lv_timer_get_user_data(timer);
 
@@ -111,14 +123,14 @@ OdomLocator::OdomLocator(std::optional<void *> field_path, std::string name) {
   lv_obj_set_flex_align(button_list, LV_FLEX_ALIGN_SPACE_EVENLY,
                         LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-  lv_obj_t *mode_btn = lv_button_create(button_list);
-  lv_obj_set_size(mode_btn, 67, 41);
-  lv_obj_set_flex_align(mode_btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_add_event_cb(mode_btn, &mode_cb, LV_EVENT_CLICKED, NULL);
-  lv_obj_set_user_data(mode_btn, this);
-  mode_label = lv_label_create(mode_btn);
-  lv_label_set_text(mode_label, "Mode:\nLateral");
+  // lv_obj_t *mode_btn = lv_button_create(button_list);
+  // lv_obj_set_size(mode_btn, 67, 41);
+  // lv_obj_set_flex_align(mode_btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+  //                       LV_FLEX_ALIGN_CENTER);
+  // lv_obj_add_event_cb(mode_btn, &mode_cb, LV_EVENT_CLICKED, NULL);
+  // lv_obj_set_user_data(mode_btn, this);
+  // mode_label = lv_label_create(mode_btn);
+  // lv_label_set_text(mode_label, "Mode:\nPosition");
 
   lv_obj_t *field_cont = lv_obj_create(view->obj);
   lv_obj_add_style(field_cont, &style_transp, 0);
@@ -161,18 +173,6 @@ OdomLocator::OdomLocator(std::optional<void *> field_path, std::string name) {
 void OdomLocator::update(libmavnetics::Pose2D pose) { this->robot_pose = pose; }
 
 void OdomLocator::focus() { rd_view_focus(this->view); }
-
-void OdomLocator::mode_cb(lv_event_t *event) {
-  OdomLocator *locator =
-      (OdomLocator *)lv_obj_get_user_data(lv_event_get_target_obj(event));
-  locator->mode = !(locator->mode);
-  if (locator->mode) {
-    lv_label_set_text(locator->mode_label, "Mode:\nAngle");
-  }
-  if (!(locator->mode)) {
-    lv_label_set_text(locator->mode_label, "Mode:\nPosition");
-  }
-}
 
 } // namespace gui
 } // namespace libmavnetics

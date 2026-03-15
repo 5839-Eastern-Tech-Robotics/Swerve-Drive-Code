@@ -7,13 +7,12 @@
 #include "Eigen/QR"
 #include "libmavnetics/drive/odometry.hpp"
 #include "libmavnetics/drive/swerveModule.hpp"
-//#include "libmavnetics/utils/trajectory.hpp"
 #include "libmavnetics/utils/chassisSpeeds.hpp"
+#include "libmavnetics/utils/pid.hpp"
 #include "libmavnetics/utils/pose2d.hpp"
 #include "libmavnetics/utils/rotation2d.hpp"
 #include "libmavnetics/utils/translation2d.hpp"
 #include "libmavnetics/utils/twist2d.hpp"
-#include "libmavnetics/utils/pid.hpp"
 #include "units/angle.h"
 #include "units/angular_velocity.h"
 #include "units/length.h"
@@ -32,7 +31,6 @@ template <int Rows, int Cols,
                              : EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION),
           int MaxRows = Rows, int MaxCols = Cols>
 using Matrixd = Eigen::Matrix<double, Rows, Cols, Options, MaxRows, MaxCols>;
-
 
 template <size_t numModules> class SwerveDriveKinematics {
 public:
@@ -259,9 +257,9 @@ public:
    * Initializes the swerve drive
    * @param modules the swerve drive modules in the order [fl, fr, bl, br]
    */
-  SwerveDrive(std::array<SwerveModule, 4> modules, units::meter_t track_width,
-              units::meter_t wheel_base, Odometry *odometry,
-              PID *xPID, PID *yPID, PID *thetaPID, PID *rotPID);
+  SwerveDrive(std::array<SwerveModule *, 4> modules, units::meter_t track_width,
+              units::meter_t wheel_base, Odometry *odometry, PID *xPID,
+              PID *yPID, PID *thetaPID, PID *rotPID);
 
   void calibrate();
   void update();
@@ -283,26 +281,29 @@ public:
   void setPose(Translation2D position, Rotation2D theta);
   void setPose(Pose2D pose);
 
-  void driveToPose(Pose2D trajectoryPose, units::meters_per_second_t desiredLinearVelocity, const Rotation2D& desiredHeading, bool async);
+  void driveToPose(Pose2D trajectoryPose,
+                   units::meters_per_second_t desiredLinearVelocity,
+                   const Rotation2D &desiredHeading, bool async);
   bool isFinishedMovement();
   void waitUntilDone();
   void waitUtilDistance(units::meter_t dist);
-  //void driveTrajectory(Trajectory, bool async, ...);
+  // void driveTrajectory(Trajectory, bool async, ...);
 
 private:
-  SwerveModule m_frontLeft;
-  SwerveModule m_backLeft;
-  SwerveModule m_frontRight;
-  SwerveModule m_backRight;
+  SwerveModule *m_frontLeft;
+  SwerveModule *m_backLeft;
+  SwerveModule *m_frontRight;
+  SwerveModule *m_backRight;
 
   units::meter_t track_width;
   units::meter_t wheel_base;
 
   SwerveDriveKinematics<4> m_kinematics;
   Odometry *m_odometry;
-  
-  // from allwpilib/wpimath/src/main/native/include/frc/controller/HolonomicDriveController.h
-  
+
+  // from
+  // allwpilib/wpimath/src/main/native/include/frc/controller/HolonomicDriveController.h
+
   Pose2D m_poseError;
   Rotation2D m_rotationError;
   Pose2D m_poseTolerance;

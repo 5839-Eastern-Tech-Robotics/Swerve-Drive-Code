@@ -70,6 +70,7 @@ void PIDTuner::run_test_cb(lv_event_t *event) {
     float kI = std::stof(lv_textarea_get_text(tuner->ta_i));
     float kD = std::stof(lv_textarea_get_text(tuner->ta_d));
     lv_obj_add_flag(tuner->numpad, LV_OBJ_FLAG_HIDDEN);
+    lv_chart_set_all_value(tuner->graph, tuner->error_series, 0);
     tuner->selected_pid->pid->setGains(kP, kI, kD);
     tuner->running_test = true;
   }
@@ -102,11 +103,10 @@ void PIDTuner::numpad_cb(lv_event_t *event) {
     lv_obj_add_flag(tuner->numpad, LV_OBJ_FLAG_HIDDEN);
   } else if (lv_keyboard_get_selected_button(tuner->numpad) == 7) {
     lv_obj_add_flag(tuner->numpad, LV_OBJ_FLAG_HIDDEN);
-    // check button - set constants
-    // float kP = atof(lv_textarea_get_text(tuner->ta_p));
-    // float kI = atof(lv_textarea_get_text(tuner->ta_i));
-    // float kD = atof(lv_textarea_get_text(tuner->ta_d));
-    // tuner->selected_pid->pid->setGains(kP, kI, kD);
+    float kP = std::stof(lv_textarea_get_text(tuner->ta_p));
+    float kI = std::stof(lv_textarea_get_text(tuner->ta_i));
+    float kD = std::stof(lv_textarea_get_text(tuner->ta_d));
+    tuner->selected_pid->pid->setGains(kP, kI, kD);
   }
   // lv_textarea_set_text(tuner->ta_p,
   // std::to_string(lv_keyboard_get_selected_button(tuner->numpad)).c_str());
@@ -125,8 +125,13 @@ void PIDTuner::update_graph(lv_timer_t *timer) {
   std::rotate(tuner->error_values.begin(), tuner->error_values.begin() + 1,
               tuner->error_values.end());
   tuner->error_values.back() = error;
-  double max =
-      *std::max_element(tuner->error_values.begin(), tuner->error_values.end());
+  double max = std::fabs(
+      *std::max_element(tuner->error_values.begin(), tuner->error_values.end(),
+                        [](double largest, double item) {
+                          return std::fabs(largest) < std::fabs(item);
+                        }));
+  if (max < 1E-6)
+    max = 20;
   // lv_chart_set_next_value(tuner->graph, tuner->error_series, error);
 
   double scale = 1;
@@ -142,10 +147,10 @@ void PIDTuner::update_graph(lv_timer_t *timer) {
                    return static_cast<std::int32_t>(value / graphScale);
                  });
 
-  std::cout << "max: " << max << ", scale: " << scale
-            << ", graph scale: " << graphScale << ", ";
-  std::cout << "error: " << error << ", scaled error: " << error / graphScale
-            << std::endl;
+  // std::cout << "max: " << max << ", scale: " << scale
+  //           << ", graph scale: " << graphScale << ", ";
+  // std::cout << "error: " << error << ", scaled error: " << error / graphScale
+  //           << std::endl;
   // std::cout << "values: ";
   for (auto &value : tuner->scaled_error_values) {
     lv_chart_set_next_value(tuner->graph, tuner->error_series, value);

@@ -3,17 +3,14 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <numbers>
+#include <iostream>
+#include <ostream>
 
 #include "globals.hpp"
-#include "libmavnetics/utils/rotation2d.hpp"
-#include "libmavnetics/utils/util.hpp"
 #include "pros/misc.h"
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include "units/angular_velocity.h"
-#include "units/math.h"
-#include "units/time.h"
 #include "units/velocity.h"
 
 // units library: https://github.com/nholthaus/units
@@ -22,7 +19,6 @@
 
 void initialize() {
   tuner.focus();
-  tuner.selectPID(1);
 
   rotateFR.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   rotateFL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
@@ -34,55 +30,76 @@ void initialize() {
   driveBL.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
   driveBR.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
 
-  if (imu.reset(true) != 1 && imu.reset(true) != 1 && imu.reset(true) != 1)
-    controller.rumble("...");
-  else
-    controller.rumble("-");
+  // drivetrain.calibrate();
+  imu.reset(true);
+  controller.rumble(".");
+  // odometry.calibrate(false);
+
+  auto task = pros::Task([=]() {
+    while (true) {
+      odometry.update();
+      auto pose = drivetrain.getPose();
+      locator.update(pose);
+
+      std::cout << "heading: " << pose.rotation().degrees().value() << " deg" << std::endl;
+
+      pros::delay(20);
+    }
+  });
+
+  auto io_task = pros::Task([=]() {
+    while (true) {
+
+      double kP, kI, kD;
+      std::cin >> kP >> kI >> kD;
+      std::cout << kP << ", " << kI << ", " << kD << std::endl;
+
+      FLModule.turnPID.setGains(kP, kI, kD);
+      FRModule.turnPID.setGains(kP, kI, kD);
+      BLModule.turnPID.setGains(kP, kI, kD);
+      BRModule.turnPID.setGains(kP, kI, kD);
+    }
+  });
 }
 
 void disabled() {}
 void competition_initialize() {}
-void autonomous() {}
+void autonomous() {
+  logo.focus();
+  autonSelector.run_auton();
+}
 
 void opcontrol() {
   long lastXPress = -1;
 
-  units::revolutions_per_minute_t moduleWheelSpeed =
-      libmavnetics::getRPM(driveCartridge) * driveRatio;
-
-  units::meters_per_second_t maxLinearSpeed =
-      moduleWheelSpeed.value() / 60.0_s * driveWheelDiameter * std::numbers::pi;
-
-  units::radians_per_second_t maxRotationalSpeed =
-      1_rad * maxLinearSpeed /
-      units::math::hypot(track_width / 2.0, wheel_base / 2.0);
-
   while (true) {
-    libmavnetics::Rotation2D heading{-imu.get_heading() * 1_deg + 90_deg};
-
     units::meters_per_second_t xSpeed =
         static_cast<double>(
             -controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y)) *
-        maxLinearSpeed / 127.0;
+        maxLinearVelocity / 127.0;
 
     units::meters_per_second_t ySpeed =
         static_cast<double>(
             controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X)) *
-        maxLinearSpeed / 127.0;
+        maxLinearVelocity / 127.0;
 
     units::radians_per_second_t rotSpeed =
         static_cast<double>(
             controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X)) *
-        maxRotationalSpeed / 127.0;
+        maxRotationalVelocity / 127.0;
 
-    drive.drive(xSpeed, ySpeed, rotSpeed);
+    drivetrain.drive(xSpeed, ySpeed, rotSpeed, true);
 
-    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
-      intake.move(127);
-    else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
-      intake.move(-127);
-    else
-      intake.move(0);
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+      intakeTop.move(100);
+      intakeBottom.move(100);
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+      intakeTop.move(-100);
+      intakeBottom.move(-100);
+    } else {
+      intakeTop.move(0);
+      intakeBottom.move(0);
+    }
 
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1))
       ramp.toggle();
@@ -96,8 +113,8 @@ void opcontrol() {
       }
     }
 
-    if (lastXPress != -1 && pros::millis() - lastXPress < 500) {
-      intake.move(-127);
+    if (lastXPress != -1 && pros::millis() - lastXPress < 000) {
+      intakeBottom.move(-127);
     } else if (lastXPress != -1) {
       intakeBlocker.retract();
       lastXPress = -1;

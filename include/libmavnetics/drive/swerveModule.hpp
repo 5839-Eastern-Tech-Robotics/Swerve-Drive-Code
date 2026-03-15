@@ -67,10 +67,12 @@ public:
   void setDesiredState(SwerveModuleState &state);
   void reset();
 
+  bool print = false;
+
+  PID turnPID;
 private:
   pros::Motor driveMotor, turnMotor;
   PID drivePID;
-  PID turnPID;
   const double driveGearRatio, turnGearRatio;
   const units::meter_t driveWheelDiameter;
 };

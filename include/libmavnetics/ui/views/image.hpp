@@ -7,7 +7,7 @@ namespace gui {
 
 class ImageView {
 public:
-  ImageView(std::string name, const void *image_src);
+  ImageView(std::string name, const lv_image_dsc_t *image_src);
 
   void focus();
 
