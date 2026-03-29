@@ -1,103 +1,125 @@
 #include "main.h"
 
-#include "globals.hpp"
-#include "pros/llemu.hpp"
-#include "pros/misc.h"
-#include "pros/motors.h"
-#include "pros/rtos.hpp"
-#include "units/Angle.hpp"
-#include "units/units.hpp"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
+#include <ostream>
 
-/**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
- */
+#include "globals.hpp"
+#include "pros/misc.h"
+#include "pros/motors.h"
+#include "pros/rtos.hpp"
+#include "units/angular_velocity.h"
+#include "units/velocity.h"
+
+// units library: https://github.com/nholthaus/units
+// eigen library: https://github.com/LemLib/Eigen
+// gcem library: https://github.com/kthohr/gcem
+
 void initialize() {
-    pros::lcd::initialize();
+  tuner.focus();
 
-    rotateFR.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    rotateFL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    rotateBL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    rotateBR.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  rotateFR.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  rotateFL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  rotateBL.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  rotateBR.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
 
-    if (imu.reset(true) != 1 && imu.reset(true) != 1 && imu.reset(true) != 1)
-        controller.rumble("...");
-    else
-         controller.rumble("-");
+  driveFR.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+  driveFL.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+  driveBL.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+  driveBR.set_brake_mode(pros::E_MOTOR_BRAKE_BRAKE);
+
+  // drivetrain.calibrate();
+  imu.reset(true);
+  controller.rumble(".");
+  // odometry.calibrate(false);
+
+  auto task = pros::Task([=]() {
+    while (true) {
+      odometry.update();
+      auto pose = drivetrain.getPose();
+      locator.update(pose);
+
+      std::cout << "heading: " << pose.rotation().degrees().value() << " deg" << std::endl;
+
+      pros::delay(20);
+    }
+  });
+
+  auto io_task = pros::Task([=]() {
+    while (true) {
+
+      double kP, kI, kD;
+      std::cin >> kP >> kI >> kD;
+      std::cout << kP << ", " << kI << ", " << kD << std::endl;
+
+      FLModule.turnPID.setGains(kP, kI, kD);
+      FRModule.turnPID.setGains(kP, kI, kD);
+      BLModule.turnPID.setGains(kP, kI, kD);
+      BRModule.turnPID.setGains(kP, kI, kD);
+    }
+  });
 }
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
- */
 void disabled() {}
-
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
 void competition_initialize() {}
+void autonomous() {
+  logo.focus();
+  autonSelector.run_auton();
+}
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
-void autonomous() {}
-
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
 void opcontrol() {
+  long lastXPress = -1;
+
   while (true) {
-    Angle heading{-imu.get_heading() + 90};
+    units::meters_per_second_t xSpeed =
+        static_cast<double>(
+            -controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y)) *
+        maxLinearVelocity / 127.0;
 
-    Number lx = -controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
-    Number ly = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-    Number rx = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+    units::meters_per_second_t ySpeed =
+        static_cast<double>(
+            controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X)) *
+        maxLinearVelocity / 127.0;
 
-    drive.driverControl(heading, lx, ly, rx, false);
+    units::radians_per_second_t rotSpeed =
+        static_cast<double>(
+            controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X)) *
+        maxRotationalVelocity / 127.0;
 
-    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
-      intake.move(127);
-    else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
-      intake.move(-127);
-    else
-      intake.move(0);
+    drivetrain.drive(xSpeed, ySpeed, rotSpeed, true);
+
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+      intakeTop.move(100);
+      intakeBottom.move(100);
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+      intakeTop.move(-100);
+      intakeBottom.move(-100);
+    } else {
+      intakeTop.move(0);
+      intakeBottom.move(0);
+    }
 
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1))
       ramp.toggle();
 
-    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
-      descorer.toggle();
-    
-    pros::delay(50);
+    if (lastXPress == -1 &&
+        controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+      if (intakeBlocker.is_extended()) {
+        lastXPress = pros::millis();
+      } else {
+        intakeBlocker.extend();
+      }
+    }
+
+    if (lastXPress != -1 && pros::millis() - lastXPress < 000) {
+      intakeBottom.move(-127);
+    } else if (lastXPress != -1) {
+      intakeBlocker.retract();
+      lastXPress = -1;
+    }
+
+    pros::delay(20);
   }
 }
